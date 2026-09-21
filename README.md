@@ -1,5 +1,6 @@
 # 3D Functional Group Toolbox for MoleditPy
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22866924.svg)](https://doi.org/10.5281/zenodo.22866924)
 [![CI](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox/actions/workflows/ci.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
