@@ -19,7 +19,7 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           zip -r "moleditpy_3d_functional_group_toolbox_${TAG}.zip" \
-            functional_group_toolbox_3d tests README.md LICENSE pyproject.toml \
+            functional_group_toolbox_3d functional_group_toolbox_3d.py tests README.md LICENSE pyproject.toml \
             AGENTS.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md \
             --exclude "*/__pycache__/*" "*/.pytest_cache/*"
 
