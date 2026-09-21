@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .chemistry import replace_atom_with_group
-from .groups import GROUP_CATEGORIES, GROUPS, get_group_smiles
+from .groups import GROUP_CATEGORIES, GROUPS, get_group_smiles, search_groups
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ class FunctionalGroupToolbox(QWidget):
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("Search:"))
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Filter groups (e.g. phenyl, cf3, amino)...")
+        self.search_input.setPlaceholderText("Filter groups by name or SMILES (e.g. phenyl, c1ccccc1, COOH, CF3)...")
         self.search_input.setClearButtonEnabled(True)
         self.search_input.textChanged.connect(self._on_search_changed)
         search_layout.addWidget(self.search_input, stretch=1)
@@ -149,13 +149,9 @@ class FunctionalGroupToolbox(QWidget):
     def _populate_groups(self) -> None:
         """Populate the group combo box based on current category and search text."""
         selected_category = self.category_combo.currentText()
-        cat_groups = GROUP_CATEGORIES.get(selected_category, list(GROUPS.keys()))
+        query = self.search_input.text().strip()
 
-        query = self.search_input.text().strip().lower()
-        if query:
-            filtered = [g for g in cat_groups if query in g.lower() or query in GROUPS.get(g, "").lower()]
-        else:
-            filtered = cat_groups
+        filtered = search_groups(query, category=selected_category)
 
         self.group_combo.blockSignals(True)
         current = self.group_combo.currentText()
@@ -168,6 +164,7 @@ class FunctionalGroupToolbox(QWidget):
         self.group_combo.blockSignals(False)
 
         self._update_group_preview(self.group_combo.currentText())
+
 
     def _on_category_changed(self, _category: str) -> None:
         self._populate_groups()

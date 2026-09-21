@@ -126,9 +126,76 @@ def get_groups_by_category(category: str) -> list[str]:
     return GROUP_CATEGORIES.get(category, list(GROUPS.keys()))
 
 
-def search_groups(query: str) -> list[str]:
-    """Filter group names matching query (case-insensitive substring search)."""
-    q = query.strip().lower()
+def search_groups(query: str, category: str = "All") -> list[str]:
+    """Filter group names matching query by name or SMILES."""
+    q = query.strip()
+    pool = GROUP_CATEGORIES.get(category, list(GROUPS.keys()))
     if not q:
-        return list(GROUPS.keys())
-    return [name for name in GROUPS if q in name.lower()]
+        return pool
+
+    q_lower = q.lower()
+
+    # Try parsing query as SMILES with RDKit to compare canonical SMILES
+    can_query = None
+    try:
+        from rdkit import Chem, RDLogger
+        RDLogger.DisableLog("rdApp.*")
+        mol = Chem.MolFromSmiles(q) or Chem.MolFromSmiles(f"[*:1]{q}")
+        if mol:
+            # strip dummy for canonical comparison
+            for a in mol.GetAtoms():
+                a.SetAtomMapNum(0)
+            can_query = Chem.MolToSmiles(mol)
+    except Exception:
+        can_query = None
+
+    exact_matches = []
+    sub_matches = []
+
+    for name in pool:
+        smi = GROUPS.get(name, "")
+        smi_clean = smi.replace("[*:1]", "")
+
+        # 1. Canonical SMILES match via RDKit
+        if can_query:
+            try:
+                from rdkit import Chem
+                m = Chem.MolFromSmiles(smi)
+                if m:
+                    for a in m.GetAtoms():
+                        a.SetAtomMapNum(0)
+                    if Chem.MolToSmiles(m) == can_query:
+                        exact_matches.append(name)
+                        continue
+                    rw = Chem.RWMol(m)
+                    for d in [a.GetIdx() for a in rw.GetAtoms() if a.GetAtomicNum() == 0]:
+                        rw.RemoveAtom(d)
+                    if Chem.MolToSmiles(rw.GetMol()) == can_query:
+                        exact_matches.append(name)
+                        continue
+            except Exception:
+                pass
+
+        # 2. Exact SMILES match (case-sensitive for SMILES)
+        if q == smi_clean or q == smi:
+            exact_matches.append(name)
+            continue
+
+        # 3. Name match
+        if q_lower in name.lower():
+            sub_matches.append(name)
+            continue
+
+        # 4. Case-sensitive substring in SMILES
+        if len(q) >= 2 and (q in smi or q in smi_clean):
+            sub_matches.append(name)
+
+    # Return exact SMILES matches first, then name/substring matches
+    seen = set()
+    result = []
+    for item in exact_matches + sub_matches:
+        if item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result
+

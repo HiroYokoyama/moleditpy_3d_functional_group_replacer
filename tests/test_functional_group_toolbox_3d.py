@@ -27,11 +27,13 @@ from functional_group_toolbox_3d.chemistry import (
 )
 from functional_group_toolbox_3d.dialog import FunctionalGroupToolbox, _AtomPickFilter
 from functional_group_toolbox_3d.groups import (
+    GROUP_CATEGORIES,
     GROUPS,
     get_group_smiles,
     get_groups_by_category,
     search_groups,
 )
+
 
 
 @pytest.fixture(scope="session")
@@ -89,11 +91,28 @@ def test_group_library_and_categorization():
 
 
 def test_search_groups():
-    """Test group search filter utility."""
+    """Test group search filter utility with names and SMILES."""
+    # Name search
     assert "Phenyl" in search_groups("phenyl")
     assert "Trifluoromethyl" in search_groups("fluoro")
     assert "Dimethylamino" in search_groups("amino")
     assert len(search_groups("")) == len(GROUPS)
+
+    # SMILES search (aromatic, Kekule, fragments)
+    assert search_groups("c1ccccc1")[0] == "Phenyl"
+    assert search_groups("C1=CC=CC=C1")[0] == "Phenyl"
+    assert search_groups("C(=O)O")[0] == "Carboxyl"
+    assert search_groups("O=C(O)")[0] == "Carboxyl"
+    assert search_groups("C#N")[0] == "Cyano"
+    assert search_groups("[N+](=O)[O-]")[0] == "Nitro"
+
+    # Attachment point SMILES search
+    assert "2-Pyridyl" in search_groups("*c1ncccc1")
+
+    # Category-filtered search
+    alkyl_only = search_groups("c", category="Alkyl & Aliphatic")
+    assert all(g in GROUP_CATEGORIES["Alkyl & Aliphatic"] for g in alkyl_only)
+
 
 
 def test_replacement_preserves_neighbors_and_adds_group_atoms():
@@ -279,13 +298,19 @@ def test_dialog_ui_and_search_filter(qapp):
     assert dlg.group_combo.count() == 4
     assert {dlg.group_combo.itemText(i) for i in range(4)} == {"Fluoro", "Chloro", "Bromo", "Iodo"}
 
-    # Search filter
+    # Search filter by name
     dlg.category_combo.setCurrentText("All")
     dlg.search_input.setText("phenyl")
     filtered_items = [dlg.group_combo.itemText(i) for i in range(dlg.group_combo.count())]
     assert "Phenyl" in filtered_items
     assert "4-Fluorophenyl" in filtered_items
     assert "Methyl" not in filtered_items
+
+    # Search filter by SMILES
+    dlg.search_input.setText("c1ccccc1")
+    smiles_filtered = [dlg.group_combo.itemText(i) for i in range(dlg.group_combo.count())]
+    assert smiles_filtered[0] == "Phenyl"
+    assert "Cyclohexyl" not in smiles_filtered
 
     # Clear search
     dlg.search_input.setText("")
