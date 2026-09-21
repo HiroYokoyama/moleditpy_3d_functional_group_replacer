@@ -32,10 +32,11 @@ def test_replacement_rejects_missing_attachment_point():
 
 def test_package_metadata_and_window_name_are_public():
     assert module.PLUGIN_NAME == "3D Functional Group Toolbox"
-    assert module.PLUGIN_VERSION == "0.2.0"
+    assert module.PLUGIN_VERSION == "0.3.0"
 
 
 def test_group_library_contains_common_single_point_groups():
     assert {"Methyl", "Carboxyl", "Phenyl"}.issubset(module.GROUPS)
     assert all("[*:1]" in smiles for smiles in module.GROUPS.values())
+
 
