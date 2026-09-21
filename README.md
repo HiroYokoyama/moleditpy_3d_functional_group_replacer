@@ -1,4 +1,4 @@
-# Functional Group Toolbox
+# 3D Functional Group Toolbox
 
 A MoleditPy plugin for replacing one selected atom with a common one-attachment functional group while retaining the atom's existing neighbours.
 

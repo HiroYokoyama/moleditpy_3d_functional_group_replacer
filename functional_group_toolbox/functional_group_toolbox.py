@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QComboBox, QPushButton, QLabel
 from PyQt6.QtCore import Qt, QEvent, QObject
 from rdkit import Chem
 
-PLUGIN_NAME = "Functional Group Toolbox"
+PLUGIN_NAME = "3D Functional Group Toolbox"
 PLUGIN_VERSION = "0.1.0"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
@@ -161,4 +161,4 @@ def initialize(context):
         if window is None:
             window = FunctionalGroupToolbox(context)
         window.show(); window.raise_(); window.activateWindow()
-    context.add_menu_action("Edit/Functional Group Toolbox...", show)
+    context.add_menu_action("Edit/3D Functional Group Toolbox...", show)
