@@ -1,0 +1,134 @@
+"""Functional groups library and categorization for 3D Functional Group Toolbox."""
+
+from __future__ import annotations
+
+# Comprehensive library of 1-attachment-point functional groups
+# The dummy atom [*:1] indicates the attachment point that connects to the parent molecule.
+GROUPS: dict[str, str] = {
+    # Alkyl & Aliphatic
+    "Methyl": "[*:1]C",
+    "Ethyl": "[*:1]CC",
+    "n-Propyl": "[*:1]CCC",
+    "Isopropyl": "[*:1]C(C)C",
+    "n-Butyl": "[*:1]CCCC",
+    "sec-Butyl": "[*:1]C(C)CC",
+    "Isobutyl": "[*:1]CC(C)C",
+    "tert-Butyl": "[*:1]C(C)(C)C",
+    "Neopentyl": "[*:1]CC(C)(C)C",
+    "Cyclopropyl": "[*:1]C1CC1",
+    "Cyclopentyl": "[*:1]C1CCCC1",
+    "Cyclohexyl": "[*:1]C1CCCCC1",
+    "Trifluoromethyl": "[*:1]C(F)(F)F",
+
+    # Alkenyl & Alkynyl
+    "Vinyl": "[*:1]C=C",
+    "Allyl": "[*:1]CC=C",
+    "Ethynyl": "[*:1]C#C",
+    "Propargyl": "[*:1]CC#C",
+
+    # Aryl & Heteroaryl
+    "Phenyl": "[*:1]c1ccccc1",
+    "4-Tolyl": "[*:1]c1ccc(C)cc1",
+    "4-Methoxyphenyl": "[*:1]c1ccc(OC)cc1",
+    "4-Fluorophenyl": "[*:1]c1ccc(F)cc1",
+    "4-Chlorophenyl": "[*:1]c1ccc(Cl)cc1",
+    "4-Nitrophenyl": "[*:1]c1ccc([N+](=O)[O-])cc1",
+    "Benzyl": "[*:1]Cc1ccccc1",
+    "2-Pyridyl": "[*:1]c1ncccc1",
+    "3-Pyridyl": "[*:1]c1cnccc1",
+    "4-Pyridyl": "[*:1]c1ccncc1",
+    "2-Thienyl": "[*:1]c1sccc1",
+    "2-Furyl": "[*:1]c1occc1",
+
+    # Oxygen & Carbonyl
+    "Hydroxyl": "[*:1]O",
+    "Methoxy": "[*:1]OC",
+    "Ethoxy": "[*:1]OCC",
+    "Phenoxy": "[*:1]Oc1ccccc1",
+    "Formyl": "[*:1]C=O",
+    "Acetyl": "[*:1]C(=O)C",
+    "Carboxyl": "[*:1]C(=O)O",
+    "Methoxycarbonyl": "[*:1]C(=O)OC",
+    "Ethoxycarbonyl": "[*:1]C(=O)OCC",
+    "Carbamoyl": "[*:1]C(=O)N",
+    "Acetoxy": "[*:1]OC(=O)C",
+    "Trifluoroacetyl": "[*:1]C(=O)C(F)(F)F",
+
+    # Nitrogen & Amine
+    "Amino": "[*:1]N",
+    "Methylamino": "[*:1]NC",
+    "Dimethylamino": "[*:1]N(C)C",
+    "Acetamido": "[*:1]NC(=O)C",
+    "Cyano": "[*:1]C#N",
+    "Nitro": "[*:1][N+](=O)[O-]",
+    "Azido": "[*:1][N]=[N+]=[N-]",
+    "Isocyanato": "[*:1]N=C=O",
+    "Isothiocyanato": "[*:1]N=C=S",
+
+    # Halogen
+    "Fluoro": "[*:1]F",
+    "Chloro": "[*:1]Cl",
+    "Bromo": "[*:1]Br",
+    "Iodo": "[*:1]I",
+
+    # Sulfur & Phosphorus
+    "Thiol": "[*:1]S",
+    "Methylsulfanyl": "[*:1]SC",
+    "Methylsulfinyl": "[*:1]S(=O)C",
+    "Methylsulfonyl": "[*:1]S(=O)(=O)C",
+    "Sulfo": "[*:1]S(=O)(=O)O",
+    "Sulfamoyl": "[*:1]S(=O)(=O)N",
+    "Triflyl": "[*:1]S(=O)(=O)C(F)(F)F",
+    "Phosphono": "[*:1]P(=O)(O)O",
+}
+
+GROUP_CATEGORIES: dict[str, list[str]] = {
+    "All": list(GROUPS.keys()),
+    "Alkyl & Aliphatic": [
+        "Methyl", "Ethyl", "n-Propyl", "Isopropyl", "n-Butyl", "sec-Butyl",
+        "Isobutyl", "tert-Butyl", "Neopentyl", "Cyclopropyl", "Cyclopentyl",
+        "Cyclohexyl", "Trifluoromethyl",
+    ],
+    "Alkenyl & Alkynyl": [
+        "Vinyl", "Allyl", "Ethynyl", "Propargyl",
+    ],
+    "Aryl & Heteroaryl": [
+        "Phenyl", "4-Tolyl", "4-Methoxyphenyl", "4-Fluorophenyl",
+        "4-Chlorophenyl", "4-Nitrophenyl", "Benzyl", "2-Pyridyl",
+        "3-Pyridyl", "4-Pyridyl", "2-Thienyl", "2-Furyl",
+    ],
+    "Oxygen & Carbonyl": [
+        "Hydroxyl", "Methoxy", "Ethoxy", "Phenoxy", "Formyl", "Acetyl",
+        "Carboxyl", "Methoxycarbonyl", "Ethoxycarbonyl", "Carbamoyl",
+        "Acetoxy", "Trifluoroacetyl",
+    ],
+    "Nitrogen & Amine": [
+        "Amino", "Methylamino", "Dimethylamino", "Acetamido", "Cyano",
+        "Nitro", "Azido", "Isocyanato", "Isothiocyanato",
+    ],
+    "Halogen": [
+        "Fluoro", "Chloro", "Bromo", "Iodo",
+    ],
+    "Sulfur & Phosphorus": [
+        "Thiol", "Methylsulfanyl", "Methylsulfinyl", "Methylsulfonyl",
+        "Sulfo", "Sulfamoyl", "Triflyl", "Phosphono",
+    ],
+}
+
+
+def get_group_smiles(name: str) -> str | None:
+    """Retrieve the SMILES string for a named functional group."""
+    return GROUPS.get(name)
+
+
+def get_groups_by_category(category: str) -> list[str]:
+    """Retrieve a list of functional group names in the given category."""
+    return GROUP_CATEGORIES.get(category, list(GROUPS.keys()))
+
+
+def search_groups(query: str) -> list[str]:
+    """Filter group names matching query (case-insensitive substring search)."""
+    q = query.strip().lower()
+    if not q:
+        return list(GROUPS.keys())
+    return [name for name in GROUPS if q in name.lower()]

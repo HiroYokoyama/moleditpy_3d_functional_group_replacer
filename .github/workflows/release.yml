@@ -14,12 +14,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Build source ZIP
         run: |
           TAG="${GITHUB_REF_NAME}"
           zip -r "moleditpy_3d_functional_group_toolbox_${TAG}.zip" \
             functional_group_toolbox_3d tests README.md LICENSE pyproject.toml \
+            AGENTS.md CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md \
             --exclude "*/__pycache__/*" "*/.pytest_cache/*"
+
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
