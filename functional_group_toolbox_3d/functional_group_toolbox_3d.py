@@ -5,7 +5,7 @@ from rdkit.Geometry import Point3D
 from rdkit import Chem
 
 PLUGIN_NAME = "3D Functional Group Toolbox"
-PLUGIN_VERSION = "0.1.0"
+PLUGIN_VERSION = "0.2.0"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
