@@ -15,14 +15,14 @@ from .groups import (
 )
 
 PLUGIN_NAME = "3D Functional Group Replacer"
-PLUGIN_VERSION = "0.7.0"
+PLUGIN_VERSION = "0.8.0"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Replace a selected atom with a common functional group while retaining its neighbours."
 PLUGIN_DEPENDENCIES = ["rdkit", "PyQt6"]
 PLUGIN_CATEGORY = "3D Editing"
-PLUGIN_TAGS = ["3D", "Editing", "Chemistry"]
+PLUGIN_TAGS = ["Utility"]
 
 WINDOW_ID = "functional_group_replacer"
 _context: Any | None = None
