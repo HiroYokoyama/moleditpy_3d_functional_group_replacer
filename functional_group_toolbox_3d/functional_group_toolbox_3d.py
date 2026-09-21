@@ -114,7 +114,7 @@ class FunctionalGroupToolbox(QWidget):
         self._install_3d_picking()
         context.register_window("functional_group_toolbox", self)
 
-'    def _position_near_parent(self):
+    def _position_near_parent(self):
         """Place the tool predictably near the host window and on-screen."""
         parent = self.parentWidget()
         if parent is None:
@@ -130,7 +130,7 @@ class FunctionalGroupToolbox(QWidget):
         y = max(bounds.top(), min(y, bounds.bottom() - self.height()))
         self.move(x, y)
 
-'    def _install_3d_picking(self):
+    def _install_3d_picking(self):
         plotter = getattr(self.context, "plotter", None)
         interactor = getattr(plotter, "interactor", None) if plotter else None
         if interactor is not None:
