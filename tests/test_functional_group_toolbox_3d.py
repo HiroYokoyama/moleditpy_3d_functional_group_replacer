@@ -360,8 +360,10 @@ def test_dialog_pick_atom_logic(qapp):
     mock_picker = MagicMock()
     mock_picker.GetActor.return_value = atom_actor
     mock_picker.GetPickPosition.return_value = (atom0_pos.x, atom0_pos.y, atom0_pos.z)
+    mock_vtk = MagicMock()
+    mock_vtk.vtkCellPicker.return_value = mock_picker
 
-    with patch("vtk.vtkCellPicker", return_value=mock_picker):
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
         widget = MagicMock()
         widget.devicePixelRatioF.return_value = 1.0
         widget.height.return_value = 600
