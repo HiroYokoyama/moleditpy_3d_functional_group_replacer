@@ -53,7 +53,7 @@ Restart MoleditPy or run **Plugins** > **Reload Plugins**.
 ## How to Use
 
 1. Open a molecule in MoleditPy and enter the **3D View**.
-2. Open the toolbox from **Edit** > **3D Functional Group Toolbox...**.
+2. Open the toolbox from **3D Edit** > **3D Functional Group Toolbox...**.
 3. **Select an Atom**: Click any atom in the 3D viewport (e.g., a hydrogen atom or halogen).
    - A yellow `"1"` label immediately pins to the selected atom in the 3D scene.
    - The dialog displays `Selected atom: C0 (index 0)`.

@@ -459,6 +459,9 @@ def test_initialize_and_lifecycle_handlers(qapp):
     mock_context.register_document_reset_handler.side_effect = lambda h: handlers.setdefault("reset", h)
 
     module.initialize(mock_context)
+    mock_context.add_menu_action.assert_called_once_with(
+        "3D Edit/3D Functional Group Toolbox...", module._open_toolbox
+    )
 
     # Trigger opening dialog
     module._open_toolbox()

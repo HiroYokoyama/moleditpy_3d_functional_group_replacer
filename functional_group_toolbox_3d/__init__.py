@@ -15,7 +15,7 @@ from .groups import (
 )
 
 PLUGIN_NAME = "3D Functional Group Toolbox"
-PLUGIN_VERSION = "0.4.1"
+PLUGIN_VERSION = "0.5.0"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
@@ -35,18 +35,19 @@ _current_settings: dict[str, Any] = {
 
 
 def _open_toolbox() -> None:
-    """Open or bring to front the 3D Functional Group Toolbox window."""
+    """Open or focus the 3D Functional Group Toolbox dialog."""
     global _dialog_opened
     if _context is None:
         return
 
+    _dialog_opened = True
     existing = _context.get_window(WINDOW_ID)
-    if existing is not None and existing.isVisible():
+    if existing is not None:
+        existing.show()
         existing.raise_()
         existing.activateWindow()
         return
 
-    _dialog_opened = True
     window = FunctionalGroupToolbox(_context)
     if _current_settings.get("last_category") in GROUP_CATEGORIES:
         window.category_combo.setCurrentText(_current_settings["last_category"])
@@ -63,7 +64,7 @@ def initialize(context: Any) -> None:
     global _context
     _context = context
 
-    context.add_menu_action("Edit/3D Functional Group Toolbox...", _open_toolbox)
+    context.add_menu_action("3D Edit/3D Functional Group Toolbox...", _open_toolbox)
 
     def save_state() -> dict[str, Any]:
         if not _dialog_opened:

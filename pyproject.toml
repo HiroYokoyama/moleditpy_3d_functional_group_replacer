@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "moleditpy-3d-functional-group-toolbox"
-version = "0.4.1"
+version = "0.5.0"
 description = "3D Functional Group replacement plugin for MoleditPy"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
