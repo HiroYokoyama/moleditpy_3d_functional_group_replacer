@@ -21,4 +21,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install --upgrade pip
       - run: python -m pip install pytest rdkit PyQt6
+      - run: python -m pip install build
+      - run: python -m build
       - run: python -m pytest tests -q

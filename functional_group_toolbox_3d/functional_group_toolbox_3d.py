@@ -1,6 +1,7 @@
 """Interactive one-attachment functional-group replacement tool."""
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QComboBox, QPushButton, QLabel, QMessageBox
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QComboBox, QPushButton, QLabel, QMessageBox
 from PyQt6.QtCore import Qt, QEvent, QObject
+from rdkit.Geometry import Point3D
 from rdkit import Chem
 
 PLUGIN_NAME = "3D Functional Group Toolbox"
@@ -36,6 +37,7 @@ def replace_atom_with_group(mol, target, group_smiles):
     target_atom.SetAtomicNum(source_atom.GetAtomicNum())
     target_atom.SetFormalCharge(source_atom.GetFormalCharge())
     target_atom.SetIsAromatic(source_atom.GetIsAromatic())
+    target_atom.SetNoImplicit(False)
     mapping = {attach: target}
     for atom in fragment.GetAtoms():
         if atom.GetIdx() != dummy and atom.GetIdx() != attach:
@@ -45,7 +47,22 @@ def replace_atom_with_group(mol, target, group_smiles):
         if dummy not in (a, b) and rw.GetBondBetweenAtoms(mapping[a], mapping[b]) is None:
             rw.AddBond(mapping[a], mapping[b], bond.GetBondType())
     Chem.SanitizeMol(rw)
-    return rw.GetMol()
+    result = rw.GetMol()
+    if result.GetNumConformers():
+        conf = result.GetConformer()
+        target_pos = conf.GetAtomPosition(target)
+        added = [idx for idx in mapping.values() if idx != target]
+        for offset, idx in enumerate(added, start=1):
+            conf.SetAtomPosition(
+                idx,
+                Point3D(
+                    target_pos.x + 1.45 * offset,
+                    target_pos.y + 0.25 * (offset % 2),
+                    target_pos.z,
+                ),
+            )
+    # Make valence-completing hydrogens explicit for reliable 3D display.
+    return Chem.AddHs(result, addCoords=True)
 
 class _AtomPickFilter(QObject):
     """Observe viewport clicks without consuming host camera gestures."""
@@ -71,8 +88,12 @@ class FunctionalGroupToolbox(QWidget):
         super().__init__(context.get_main_window())
         self.context = context
         self._pick_filter = None
+        self.setWindowFlags(
+            Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.setWindowTitle(PLUGIN_NAME)
-        self.resize(300, 150)
+        self.resize(340, 190)
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel("Atom index to replace:"))
         self.atom_combo = QComboBox()
@@ -93,7 +114,23 @@ class FunctionalGroupToolbox(QWidget):
         self._install_3d_picking()
         context.register_window("functional_group_toolbox", self)
 
-    def _install_3d_picking(self):
+'    def _position_near_parent(self):
+        """Place the tool predictably near the host window and on-screen."""
+        parent = self.parentWidget()
+        if parent is None:
+            return
+        parent_rect = parent.frameGeometry()
+        screen = parent.screen() or QApplication.primaryScreen()
+        if screen is None:
+            return
+        bounds = screen.availableGeometry()
+        x = parent_rect.center().x() - self.width() // 2
+        y = parent_rect.center().y() - self.height() // 2
+        x = max(bounds.left(), min(x, bounds.right() - self.width()))
+        y = max(bounds.top(), min(y, bounds.bottom() - self.height()))
+        self.move(x, y)
+
+'    def _install_3d_picking(self):
         plotter = getattr(self.context, "plotter", None)
         interactor = getattr(plotter, "interactor", None) if plotter else None
         if interactor is not None:
@@ -115,10 +152,20 @@ class FunctionalGroupToolbox(QWidget):
         ratio = widget.devicePixelRatioF()
         picker.SetTolerance(0.005)
         picker.Pick(x * ratio, (widget.height() - y) * ratio, 0, plotter.renderer)
+        picked_actor = picker.GetActor()
+        main_window = self.context.get_main_window()
+        view_3d = getattr(main_window, 'view_3d_manager', None) if main_window else None
+        atom_actor = getattr(view_3d, 'atom_actor', None) if view_3d else None
+        if atom_actor is not None and picked_actor is not atom_actor:
+            self.context.show_status_message('No atom was selected.')
+            return
         pos = picker.GetPickPosition()
         atom = min(mol.GetAtoms(), key=lambda candidate: self._distance_sq(mol, candidate.GetIdx(), pos))
+        if self._distance_sq(mol, atom.GetIdx(), pos) > 0.45 ** 2:
+            self.context.show_status_message('No atom was selected.')
+            return
         self.atom_combo.setCurrentIndex(atom.GetIdx())
-        self.context.show_status_message(f"Selected atom {atom.GetIdx()} ({atom.GetSymbol()}).")
+        self.context.show_status_message(f'Selected atom {atom.GetIdx()} ({atom.GetSymbol()}).')
 
     def _distance_sq(self, mol, index, pos):
         point = mol.GetConformer().GetAtomPosition(index)
