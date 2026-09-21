@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 Chem = pytest.importorskip("rdkit.Chem")
-SOURCE = Path(__file__).resolve().parents[1] / "functional_group_toolbox" / "functional_group_toolbox.py"
+SOURCE = Path(__file__).resolve().parents[1] / "functional_group_toolbox_3d" / "functional_group_toolbox_3d.py"
 spec = importlib.util.spec_from_file_location("functional_group_toolbox_test", SOURCE)
 module = importlib.util.module_from_spec(spec)
 assert spec.loader is not None
