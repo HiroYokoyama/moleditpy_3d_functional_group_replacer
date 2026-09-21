@@ -4,7 +4,7 @@ from PyQt6.QtCore import Qt, QEvent, QObject
 from rdkit import Chem
 
 PLUGIN_NAME = "Functional Group Toolbox"
-PLUGIN_VERSION = "2026.09.21"
+PLUGIN_VERSION = "0.1.0"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
