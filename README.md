@@ -10,7 +10,7 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
 
 ---
 
-## ✨ Features
+## Features
 
 - **Interactive 3D Picking by Default**: Simply click any atom in the 3D viewport to select it as the target. No manual atom index lookups or cumbersome toggle buttons required.
 - **Native 3D Selected Atom Label**: Displays an on-screen yellow numbered point label (`"1"`) directly attached to the selected atom in the 3D view (identical to MoleditPy's native 3D geometry editing dialogs). Deselecting, replacing, or closing automatically removes the label.
@@ -28,7 +28,7 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Via MoleditPy Plugin Manager (Recommended)
 1. Open MoleditPy.
@@ -50,7 +50,7 @@ Restart MoleditPy or run **Plugins** > **Reload Plugins**.
 
 ---
 
-## 💡 How to Use
+## How to Use
 
 1. Open a molecule in MoleditPy and enter the **3D View**.
 2. Open the toolbox from **Edit** > **3D Functional Group Toolbox...**.
@@ -68,7 +68,7 @@ Restart MoleditPy or run **Plugins** > **Reload Plugins**.
 
 ---
 
-## 🧩 Architecture
+## Architecture
 
 ```text
 moleditpy_3d_functional_group_toolbox/
@@ -95,7 +95,7 @@ moleditpy_3d_functional_group_toolbox/
 
 ---
 
-## 🧪 Testing
+## Testing
 
 Run the headless test suite:
 
@@ -111,6 +111,6 @@ python -m pytest tests/test_api.py -v
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).
