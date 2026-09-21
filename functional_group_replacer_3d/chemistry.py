@@ -27,16 +27,20 @@ def _rotation_matrix_from_vectors(vec1: np.ndarray, vec2: np.ndarray) -> np.ndar
     if dot > 0.999999:
         return np.eye(3)
     if dot < -0.999999:
-        ortho = np.array([1.0, 0.0, 0.0]) if abs(a[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        ortho = (
+            np.array([1.0, 0.0, 0.0]) if abs(a[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        )
         axis = np.cross(a, ortho)
         axis /= np.linalg.norm(axis)
-        k = np.array([[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]])
+        k = np.array(
+            [[0, -axis[2], axis[1]], [axis[2], 0, -axis[0]], [-axis[1], axis[0], 0]]
+        )
         return np.eye(3) + 2 * k @ k
 
     v = np.cross(a, b)
     s = float(np.linalg.norm(v))
     k = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
-    return np.eye(3) + k + k @ k * ((1.0 - dot) / (s ** 2))
+    return np.eye(3) + k + k @ k * ((1.0 - dot) / (s**2))
 
 
 def replace_atom_with_group(
@@ -63,7 +67,9 @@ def replace_atom_with_group(
     if fragment is None:
         raise ValueError("Invalid functional-group SMILES")
 
-    dummy = next((a.GetIdx() for a in fragment.GetAtoms() if a.GetAtomicNum() == 0), None)
+    dummy = next(
+        (a.GetIdx() for a in fragment.GetAtoms() if a.GetAtomicNum() == 0), None
+    )
     if dummy is None:
         raise ValueError("Functional group has no attachment point")
 
@@ -108,7 +114,10 @@ def replace_atom_with_group(
             mapping[atom.GetIdx()] = rw.AddAtom(Chem.Atom(atom))
     for bond in fragment.GetBonds():
         a, b = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-        if dummy not in (a, b) and rw.GetBondBetweenAtoms(mapping[a], mapping[b]) is None:
+        if (
+            dummy not in (a, b)
+            and rw.GetBondBetweenAtoms(mapping[a], mapping[b]) is None
+        ):
             rw.AddBond(mapping[a], mapping[b], bond.GetBondType())
 
     Chem.SanitizeMol(rw)
@@ -119,15 +128,19 @@ def replace_atom_with_group(
 
         # Embed a 3D copy of the fragment to preserve chemically accurate bond angles and lengths
         frag_copy = Chem.Mol(fragment)
-        frag_dummy = next(a.GetIdx() for a in frag_copy.GetAtoms() if a.GetAtomicNum() == 0)
-        frag_copy.GetAtomWithIdx(frag_dummy).SetAtomicNum(root_atomic_num if root_atomic_num > 0 else 6)
+        frag_dummy = next(
+            a.GetIdx() for a in frag_copy.GetAtoms() if a.GetAtomicNum() == 0
+        )
+        frag_copy.GetAtomWithIdx(frag_dummy).SetAtomicNum(
+            root_atomic_num if root_atomic_num > 0 else 6
+        )
 
         embed_success = False
         try:
             embed_res = AllChem.EmbedMolecule(frag_copy, AllChem.ETKDGv3())
             if embed_res != 0:
                 embed_res = AllChem.EmbedMolecule(frag_copy)
-            embed_success = (embed_res == 0 and frag_copy.GetNumConformers() > 0)
+            embed_success = embed_res == 0 and frag_copy.GetNumConformers() > 0
         except (RuntimeError, ValueError, AttributeError):
             embed_success = False
 
@@ -145,7 +158,10 @@ def replace_atom_with_group(
                 p_f = np.array(frag_conf.GetAtomPosition(f_idx))
                 rel_f = p_f - a_pos
                 new_pos = target_pos + r_mat @ rel_f
-                conf.SetAtomPosition(mapping[f_idx], Point3D(float(new_pos[0]), float(new_pos[1]), float(new_pos[2])))
+                conf.SetAtomPosition(
+                    mapping[f_idx],
+                    Point3D(float(new_pos[0]), float(new_pos[1]), float(new_pos[2])),
+                )
         else:
             # Fallback linear layout if fragment 3D embedding fails
             u = np.array([0.0, 1.0, 0.0])
@@ -167,7 +183,9 @@ def replace_atom_with_group(
                     + u * (0.35 * (offset % 2))
                     + w * (0.2 * ((offset // 2) % 2))
                 )
-                conf.SetAtomPosition(idx, Point3D(float(pos[0]), float(pos[1]), float(pos[2])))
+                conf.SetAtomPosition(
+                    idx, Point3D(float(pos[0]), float(pos[1]), float(pos[2]))
+                )
 
     # Make valence-completing hydrogens explicit for reliable 3D display.
     result = Chem.AddHs(result, addCoords=has_conf)

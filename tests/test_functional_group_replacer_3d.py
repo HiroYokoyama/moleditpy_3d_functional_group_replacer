@@ -61,12 +61,12 @@ def test_package_metadata_and_public_exports():
 def test_backward_compatible_module_import():
     """Verify functional_group_replacer_3d.py re-exports match package exports."""
     import functional_group_replacer_3d.functional_group_replacer_3d as compat_mod
+
     assert compat_mod.PLUGIN_NAME == module.PLUGIN_NAME
     assert compat_mod.GROUPS == GROUPS
     assert compat_mod.FunctionalGroupReplacer is FunctionalGroupReplacer
     assert compat_mod.FunctionalGroupToolbox is FunctionalGroupToolbox
     assert compat_mod.replace_atom_with_group is replace_atom_with_group
-
 
 
 def test_group_library_and_categorization():
@@ -123,7 +123,6 @@ def test_search_groups():
     assert all(g in GROUP_CATEGORIES["Alkyl & Aliphatic"] for g in alkyl_only)
 
 
-
 def test_replacement_preserves_neighbors_and_adds_group_atoms():
     """Verify chemical replacement on a 2D Mol."""
     mol = Chem.MolFromSmiles("CC")
@@ -154,10 +153,27 @@ def test_all_groups_replace_hydrogen_in_3d():
 
     # Sample key groups across all categories to verify execution and conformer integrity
     sample_groups = [
-        "Methyl", "Isopropyl", "tert-Butyl", "Cyclopropyl", "Trifluoromethyl",
-        "Vinyl", "Ethynyl", "Phenyl", "4-Pyridyl", "2-Thienyl",
-        "Hydroxyl", "Methoxy", "Acetyl", "Carboxyl", "Amino",
-        "Cyano", "Nitro", "Azido", "Fluoro", "Thiol", "Methylsulfonyl",
+        "Methyl",
+        "Isopropyl",
+        "tert-Butyl",
+        "Cyclopropyl",
+        "Trifluoromethyl",
+        "Vinyl",
+        "Ethynyl",
+        "Phenyl",
+        "4-Pyridyl",
+        "2-Thienyl",
+        "Hydroxyl",
+        "Methoxy",
+        "Acetyl",
+        "Carboxyl",
+        "Amino",
+        "Cyano",
+        "Nitro",
+        "Azido",
+        "Fluoro",
+        "Thiol",
+        "Methylsulfonyl",
     ]
     for gname in sample_groups:
         smi = GROUPS[gname]
@@ -183,7 +199,11 @@ def test_3d_relaxation_holds_parent_atoms_rigid():
         if i != target_h:
             orig_p = orig_positions[i]
             new_p = res_conf.GetAtomPosition(i)
-            dist_sq = (new_p.x - orig_p.x)**2 + (new_p.y - orig_p.y)**2 + (new_p.z - orig_p.z)**2
+            dist_sq = (
+                (new_p.x - orig_p.x) ** 2
+                + (new_p.y - orig_p.y) ** 2
+                + (new_p.z - orig_p.z) ** 2
+            )
             assert dist_sq < 1e-4, f"Parent atom {i} moved unexpectedly!"
 
 
@@ -202,7 +222,11 @@ def test_nitrile_and_second_atom_angle_orientation():
     # Find the nitrogen atom in the attached nitrile group
     nitrile_c = target_h
     nitrile_c_pos = np.array(res_conf.GetAtomPosition(nitrile_c))
-    nitrile_n = next(a.GetIdx() for a in res.GetAtomWithIdx(nitrile_c).GetNeighbors() if a.GetAtomicNum() == 7)
+    nitrile_n = next(
+        a.GetIdx()
+        for a in res.GetAtomWithIdx(nitrile_c).GetNeighbors()
+        if a.GetAtomicNum() == 7
+    )
     nitrile_n_pos = np.array(res_conf.GetAtomPosition(nitrile_n))
 
     # Vector 1: root_c -> nitrile_c
@@ -305,19 +329,28 @@ def test_dialog_ui_and_search_filter(qapp):
     # Category filter
     dlg.category_combo.setCurrentText("Halogen")
     assert dlg.group_combo.count() == 4
-    assert {dlg.group_combo.itemText(i) for i in range(4)} == {"Fluoro", "Chloro", "Bromo", "Iodo"}
+    assert {dlg.group_combo.itemText(i) for i in range(4)} == {
+        "Fluoro",
+        "Chloro",
+        "Bromo",
+        "Iodo",
+    }
 
     # Search filter by name
     dlg.category_combo.setCurrentText("All")
     dlg.search_input.setText("phenyl")
-    filtered_items = [dlg.group_combo.itemText(i) for i in range(dlg.group_combo.count())]
+    filtered_items = [
+        dlg.group_combo.itemText(i) for i in range(dlg.group_combo.count())
+    ]
     assert "Phenyl" in filtered_items
     assert "4-Fluorophenyl" in filtered_items
     assert "Methyl" not in filtered_items
 
     # Search filter by SMILES
     dlg.search_input.setText("c1ccccc1")
-    smiles_filtered = [dlg.group_combo.itemText(i) for i in range(dlg.group_combo.count())]
+    smiles_filtered = [
+        dlg.group_combo.itemText(i) for i in range(dlg.group_combo.count())
+    ]
     assert smiles_filtered[0] == "Phenyl"
     assert "Cyclohexyl" not in smiles_filtered
 
@@ -463,7 +496,10 @@ def test_dialog_replace_atom_action_and_fallbacks(qapp):
     # Error handling branch
     dlg.selected_atom_idx = 0
     with (
-        patch("functional_group_replacer_3d.dialog.replace_atom_with_group", side_effect=RuntimeError("Test error")),
+        patch(
+            "functional_group_replacer_3d.dialog.replace_atom_with_group",
+            side_effect=RuntimeError("Test error"),
+        ),
         patch("PyQt6.QtWidgets.QMessageBox.critical") as mock_crit,
     ):
         dlg.replace_atom()
@@ -488,9 +524,15 @@ def test_initialize_and_lifecycle_handlers(qapp):
     mock_context.get_window.return_value = None
 
     handlers = {}
-    mock_context.register_save_handler.side_effect = lambda h: handlers.setdefault("save", h)
-    mock_context.register_load_handler.side_effect = lambda h: handlers.setdefault("load", h)
-    mock_context.register_document_reset_handler.side_effect = lambda h: handlers.setdefault("reset", h)
+    mock_context.register_save_handler.side_effect = lambda h: handlers.setdefault(
+        "save", h
+    )
+    mock_context.register_load_handler.side_effect = lambda h: handlers.setdefault(
+        "load", h
+    )
+    mock_context.register_document_reset_handler.side_effect = lambda h: (
+        handlers.setdefault("reset", h)
+    )
 
     module.initialize(mock_context)
     mock_context.add_menu_action.assert_called_once_with(
@@ -511,7 +553,15 @@ def test_initialize_and_lifecycle_handlers(qapp):
     assert "settings" in saved
 
     # Load state
-    handlers["load"]({"settings": {"last_category": "Halogen", "last_group": "Fluoro", "relax": False}})
+    handlers["load"](
+        {
+            "settings": {
+                "last_category": "Halogen",
+                "last_group": "Fluoro",
+                "relax": False,
+            }
+        }
+    )
     assert dlg.category_combo.currentText() == "Halogen"
     assert dlg.group_combo.currentText() == "Fluoro"
     assert not dlg.relax_checkbox.isChecked()
@@ -527,6 +577,7 @@ def test_initialize_and_lifecycle_handlers(qapp):
 def test_dialog_position_near_parent(qapp):
     """Test dialog geometry placement relative to parent widget."""
     from PyQt6.QtWidgets import QWidget
+
     parent = QWidget()
     parent.resize(800, 600)
     parent.show()
@@ -548,7 +599,10 @@ def test_dialog_position_near_parent(qapp):
 def test_standalone_module_execution():
     """Test executing functional_group_replacer_3d.py without an active parent package."""
     import importlib.util
-    target_path = REPO_ROOT / "functional_group_replacer_3d" / "functional_group_replacer_3d.py"
+
+    target_path = (
+        REPO_ROOT / "functional_group_replacer_3d" / "functional_group_replacer_3d.py"
+    )
     spec = importlib.util.spec_from_file_location("__main__", target_path)
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
@@ -570,8 +624,12 @@ def test_lifecycle_edge_cases():
         mock_context.get_window.return_value = None
         module._dialog_opened = False
         handlers = {}
-        mock_context.register_save_handler.side_effect = lambda h: handlers.setdefault("save", h)
-        mock_context.register_document_reset_handler.side_effect = lambda h: handlers.setdefault("reset", h)
+        mock_context.register_save_handler.side_effect = lambda h: handlers.setdefault(
+            "save", h
+        )
+        mock_context.register_document_reset_handler.side_effect = lambda h: (
+            handlers.setdefault("reset", h)
+        )
         module.initialize(mock_context)
 
         # Save before opened returns empty dict
@@ -584,8 +642,39 @@ def test_lifecycle_edge_cases():
         module._dialog_opened = True
         handlers["reset"]()
         assert module._dialog_opened is True
+
+        # When dialog is deleted (RuntimeError on isVisible or is_widget_alive is False)
+        mock_deleted_dlg = MagicMock()
+        mock_deleted_dlg.isVisible.side_effect = RuntimeError(
+            "wrapped C/C++ object has been deleted"
+        )
+        mock_context.get_window.return_value = mock_deleted_dlg
+        assert module._is_widget_alive(mock_deleted_dlg) is False
+        handlers["reset"]()
+        assert module._dialog_opened is False
+        assert module._current_settings["last_category"] == "All"
+
+        # When dialog is deleted, _open_replacer creates a new window instead of calling show() on deleted object
+        with patch(
+            "functional_group_replacer_3d.FunctionalGroupReplacer"
+        ) as mock_replacer_cls:
+            module._open_replacer()
+            mock_replacer_cls.assert_called_once_with(mock_context)
     finally:
         module._context = orig_context
         module._dialog_opened = orig_opened
 
 
+def test_is_widget_alive_with_real_widget(qapp):
+    """Test _is_widget_alive with real Qt widget lifecycle."""
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QWidget
+
+    w = QWidget()
+    assert module._is_widget_alive(w) is True
+    assert module._is_widget_alive(None) is False
+
+    w.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+    w.close()
+    qapp.sendPostedEvents(w, 52)
+    assert module._is_widget_alive(w) is False

@@ -19,13 +19,11 @@ GROUPS: dict[str, str] = {
     "Cyclopentyl": "[*:1]C1CCCC1",
     "Cyclohexyl": "[*:1]C1CCCCC1",
     "Trifluoromethyl": "[*:1]C(F)(F)F",
-
     # Alkenyl & Alkynyl
     "Vinyl": "[*:1]C=C",
     "Allyl": "[*:1]CC=C",
     "Ethynyl": "[*:1]C#C",
     "Propargyl": "[*:1]CC#C",
-
     # Aryl & Heteroaryl
     "Phenyl": "[*:1]c1ccccc1",
     "4-Tolyl": "[*:1]c1ccc(C)cc1",
@@ -39,7 +37,6 @@ GROUPS: dict[str, str] = {
     "4-Pyridyl": "[*:1]c1ccncc1",
     "2-Thienyl": "[*:1]c1sccc1",
     "2-Furyl": "[*:1]c1occc1",
-
     # Oxygen & Carbonyl
     "Hydroxyl": "[*:1]O",
     "Methoxy": "[*:1]OC",
@@ -54,7 +51,6 @@ GROUPS: dict[str, str] = {
     "Acetoxy": "[*:1]OC(=O)C",
     "Trifluoroacetyl": "[*:1]C(=O)C(F)(F)F",
     "Hydroperoxyl": "[*:1]OO",
-
     # Nitrogen & Amine
     "Amino": "[*:1]N",
     "Methylamino": "[*:1]NC",
@@ -71,13 +67,11 @@ GROUPS: dict[str, str] = {
     "Cyanato": "[*:1]OC#N",
     "Isocyanato": "[*:1]N=C=O",
     "Isothiocyanato": "[*:1]N=C=S",
-
     # Halogen
     "Fluoro": "[*:1]F",
     "Chloro": "[*:1]Cl",
     "Bromo": "[*:1]Br",
     "Iodo": "[*:1]I",
-
     # Sulfur, Phosphorus & Boron
     "Thiol": "[*:1]S",
     "Methylsulfanyl": "[*:1]SC",
@@ -94,34 +88,89 @@ GROUPS: dict[str, str] = {
 GROUP_CATEGORIES: dict[str, list[str]] = {
     "All": list(GROUPS.keys()),
     "Alkyl & Aliphatic": [
-        "Methyl", "Ethyl", "n-Propyl", "Isopropyl", "n-Butyl", "sec-Butyl",
-        "Isobutyl", "tert-Butyl", "Neopentyl", "Cyclopropyl", "Cyclopentyl",
-        "Cyclohexyl", "Trifluoromethyl",
+        "Methyl",
+        "Ethyl",
+        "n-Propyl",
+        "Isopropyl",
+        "n-Butyl",
+        "sec-Butyl",
+        "Isobutyl",
+        "tert-Butyl",
+        "Neopentyl",
+        "Cyclopropyl",
+        "Cyclopentyl",
+        "Cyclohexyl",
+        "Trifluoromethyl",
     ],
     "Alkenyl & Alkynyl": [
-        "Vinyl", "Allyl", "Ethynyl", "Propargyl",
+        "Vinyl",
+        "Allyl",
+        "Ethynyl",
+        "Propargyl",
     ],
     "Aryl & Heteroaryl": [
-        "Phenyl", "4-Tolyl", "4-Methoxyphenyl", "4-Fluorophenyl",
-        "4-Chlorophenyl", "4-Nitrophenyl", "Benzyl", "2-Pyridyl",
-        "3-Pyridyl", "4-Pyridyl", "2-Thienyl", "2-Furyl",
+        "Phenyl",
+        "4-Tolyl",
+        "4-Methoxyphenyl",
+        "4-Fluorophenyl",
+        "4-Chlorophenyl",
+        "4-Nitrophenyl",
+        "Benzyl",
+        "2-Pyridyl",
+        "3-Pyridyl",
+        "4-Pyridyl",
+        "2-Thienyl",
+        "2-Furyl",
     ],
     "Oxygen & Carbonyl": [
-        "Hydroxyl", "Methoxy", "Ethoxy", "Phenoxy", "Formyl", "Acetyl",
-        "Carboxyl", "Methoxycarbonyl", "Ethoxycarbonyl", "Carbamoyl",
-        "Acetoxy", "Trifluoroacetyl", "Hydroperoxyl",
+        "Hydroxyl",
+        "Methoxy",
+        "Ethoxy",
+        "Phenoxy",
+        "Formyl",
+        "Acetyl",
+        "Carboxyl",
+        "Methoxycarbonyl",
+        "Ethoxycarbonyl",
+        "Carbamoyl",
+        "Acetoxy",
+        "Trifluoroacetyl",
+        "Hydroperoxyl",
     ],
     "Nitrogen & Amine": [
-        "Amino", "Methylamino", "Dimethylamino", "Acetamido", "Cyano",
-        "Nitrile", "Nitro", "Nitroso", "Hydrazinyl", "Ureido", "Guanidino",
-        "Azido", "Cyanato", "Isocyanato", "Isothiocyanato",
+        "Amino",
+        "Methylamino",
+        "Dimethylamino",
+        "Acetamido",
+        "Cyano",
+        "Nitrile",
+        "Nitro",
+        "Nitroso",
+        "Hydrazinyl",
+        "Ureido",
+        "Guanidino",
+        "Azido",
+        "Cyanato",
+        "Isocyanato",
+        "Isothiocyanato",
     ],
     "Halogen": [
-        "Fluoro", "Chloro", "Bromo", "Iodo",
+        "Fluoro",
+        "Chloro",
+        "Bromo",
+        "Iodo",
     ],
     "Sulfur & Phosphorus": [
-        "Thiol", "Methylsulfanyl", "Methylsulfinyl", "Methylsulfonyl",
-        "Sulfo", "Sulfamoyl", "Triflyl", "Thiocyanato", "Phosphono", "Boryl",
+        "Thiol",
+        "Methylsulfanyl",
+        "Methylsulfinyl",
+        "Methylsulfonyl",
+        "Sulfo",
+        "Sulfamoyl",
+        "Triflyl",
+        "Thiocyanato",
+        "Phosphono",
+        "Boryl",
     ],
 }
 
@@ -149,6 +198,7 @@ def search_groups(query: str, category: str = "All") -> list[str]:
     can_query = None
     try:
         from rdkit import Chem, RDLogger
+
         RDLogger.DisableLog("rdApp.*")
         mol = Chem.MolFromSmiles(q) or Chem.MolFromSmiles(f"[*:1]{q}")
         if mol:
@@ -156,7 +206,7 @@ def search_groups(query: str, category: str = "All") -> list[str]:
             for a in mol.GetAtoms():
                 a.SetAtomMapNum(0)
             can_query = Chem.MolToSmiles(mol)
-    except Exception:
+    except (ValueError, TypeError, RuntimeError):
         can_query = None
 
     exact_matches = []
@@ -170,6 +220,7 @@ def search_groups(query: str, category: str = "All") -> list[str]:
         if can_query:
             try:
                 from rdkit import Chem
+
                 m = Chem.MolFromSmiles(smi)
                 if m:
                     for a in m.GetAtoms():
@@ -178,12 +229,14 @@ def search_groups(query: str, category: str = "All") -> list[str]:
                         exact_matches.append(name)
                         continue
                     rw = Chem.RWMol(m)
-                    for d in [a.GetIdx() for a in rw.GetAtoms() if a.GetAtomicNum() == 0]:
+                    for d in [
+                        a.GetIdx() for a in rw.GetAtoms() if a.GetAtomicNum() == 0
+                    ]:
                         rw.RemoveAtom(d)
                     if Chem.MolToSmiles(rw.GetMol()) == can_query:
                         exact_matches.append(name)
                         continue
-            except Exception:
+            except (ValueError, TypeError, RuntimeError):
                 pass
 
         # 2. Exact SMILES match (case-sensitive for SMILES)
@@ -208,4 +261,3 @@ def search_groups(query: str, category: str = "All") -> list[str]:
             seen.add(item)
             result.append(item)
     return result
-

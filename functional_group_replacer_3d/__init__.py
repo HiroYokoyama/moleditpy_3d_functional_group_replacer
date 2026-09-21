@@ -15,7 +15,7 @@ from .groups import (
 )
 
 PLUGIN_NAME = "3D Functional Group Replacer"
-PLUGIN_VERSION = "0.8.0"
+PLUGIN_VERSION = "0.8.1"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
@@ -34,6 +34,25 @@ _current_settings: dict[str, Any] = {
 }
 
 
+def _is_widget_alive(widget: Any) -> bool:
+    """Check whether a Qt widget instance is valid and its C/C++ object has not been deleted."""
+    if widget is None:
+        return False
+    try:
+        from PyQt6 import sip
+
+        if sip.isdeleted(widget):
+            return False
+    except (ImportError, TypeError):
+        pass
+    try:
+        # Calling a simple Qt method confirms whether underlying C++ object is intact
+        _ = widget.isVisible()
+        return True
+    except (RuntimeError, AttributeError):
+        return False
+
+
 def _open_replacer() -> None:
     """Open or focus the 3D Functional Group Replacer dialog."""
     global _dialog_opened
@@ -42,7 +61,7 @@ def _open_replacer() -> None:
 
     _dialog_opened = True
     existing = _context.get_window(WINDOW_ID)
-    if existing is not None:
+    if _is_widget_alive(existing):
         existing.show()
         existing.raise_()
         existing.activateWindow()
@@ -66,12 +85,11 @@ def initialize(context: Any) -> None:
 
     context.add_menu_action("3D Edit/3D Functional Group Replacer...", _open_replacer)
 
-
     def save_state() -> dict[str, Any]:
         if not _dialog_opened:
             return {}
         dlg = context.get_window(WINDOW_ID)
-        if dlg is not None and hasattr(dlg, "group_combo"):
+        if _is_widget_alive(dlg) and hasattr(dlg, "group_combo"):
             _current_settings["last_category"] = dlg.category_combo.currentText()
             _current_settings["last_group"] = dlg.group_combo.currentText()
             _current_settings["relax"] = dlg.relax_checkbox.isChecked()
@@ -83,9 +101,11 @@ def initialize(context: Any) -> None:
             if isinstance(saved, dict):
                 _current_settings.update(saved)
                 dlg = context.get_window(WINDOW_ID)
-                if dlg is not None and hasattr(dlg, "group_combo"):
+                if _is_widget_alive(dlg) and hasattr(dlg, "group_combo"):
                     if _current_settings.get("last_category") in GROUP_CATEGORIES:
-                        dlg.category_combo.setCurrentText(_current_settings["last_category"])
+                        dlg.category_combo.setCurrentText(
+                            _current_settings["last_category"]
+                        )
                     if _current_settings.get("last_group") in GROUPS:
                         dlg.group_combo.setCurrentText(_current_settings["last_group"])
                     dlg.relax_checkbox.setChecked(_current_settings.get("relax", True))
@@ -93,7 +113,7 @@ def initialize(context: Any) -> None:
     def reset_state() -> None:
         global _dialog_opened
         dlg = context.get_window(WINDOW_ID)
-        if dlg is not None and dlg.isVisible():
+        if _is_widget_alive(dlg) and dlg.isVisible():
             return
         _dialog_opened = False
         _current_settings["last_category"] = "All"
@@ -129,4 +149,3 @@ __all__ = [
     "replace_atom_with_group",
     "search_groups",
 ]
-

@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .chemistry import replace_atom_with_group
-from .groups import GROUP_CATEGORIES, GROUPS, get_group_smiles, search_groups
+from .groups import GROUP_CATEGORIES, get_group_smiles, search_groups
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,15 @@ class _AtomPickFilter(QObject):
         if event is None:
             return False
 
-        if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+        if (
+            event.type() == QEvent.Type.MouseButtonPress
+            and event.button() == Qt.MouseButton.LeftButton
+        ):
             self.press_pos = event.position().toPoint()
-        elif event.type() == QEvent.Type.MouseButtonRelease and self.press_pos is not None:
+        elif (
+            event.type() == QEvent.Type.MouseButtonRelease
+            and self.press_pos is not None
+        ):
             pos = event.position().toPoint()
             dx = pos.x() - self.press_pos.x()
             dy = pos.y() - self.press_pos.y()
@@ -55,7 +61,9 @@ class FunctionalGroupReplacer(QWidget):
     """Interactive functional group replacement tool with real-time 3D picking and labels."""
 
     def __init__(self, context: Any):
-        parent = context.get_main_window() if hasattr(context, "get_main_window") else None
+        parent = (
+            context.get_main_window() if hasattr(context, "get_main_window") else None
+        )
         if not isinstance(parent, QWidget):
             parent = None
         super().__init__(parent)
@@ -79,13 +87,17 @@ class FunctionalGroupReplacer(QWidget):
         layout.setSpacing(8)
 
         # Instructions
-        instruction = QLabel("Click an atom in the 3D view to select it for replacement.")
+        instruction = QLabel(
+            "Click an atom in the 3D view to select it for replacement."
+        )
         instruction.setWordWrap(True)
         layout.addWidget(instruction)
 
         # Selection status display
         self.selection_label = QLabel("No atom selected")
-        self.selection_label.setStyleSheet("font-weight: bold; color: #2a7ae2; padding: 2px 0;")
+        self.selection_label.setStyleSheet(
+            "font-weight: bold; color: #2a7ae2; padding: 2px 0;"
+        )
         layout.addWidget(self.selection_label)
 
         # Category filter
@@ -101,7 +113,9 @@ class FunctionalGroupReplacer(QWidget):
         search_layout = QHBoxLayout()
         search_layout.addWidget(QLabel("Search:"))
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Filter groups by name or SMILES (e.g. phenyl, c1ccccc1, COOH, CF3)...")
+        self.search_input.setPlaceholderText(
+            "Filter groups by name or SMILES (e.g. phenyl, c1ccccc1, COOH, CF3)..."
+        )
         self.search_input.setClearButtonEnabled(True)
         self.search_input.textChanged.connect(self._on_search_changed)
         search_layout.addWidget(self.search_input, stretch=1)
@@ -121,9 +135,13 @@ class FunctionalGroupReplacer(QWidget):
         layout.addWidget(self.preview_label)
 
         # 3D Relaxation option
-        self.relax_checkbox = QCheckBox("Relax group 3D geometry (MMFF/UFF force field)")
+        self.relax_checkbox = QCheckBox(
+            "Relax group 3D geometry (MMFF/UFF force field)"
+        )
         self.relax_checkbox.setChecked(True)
-        self.relax_checkbox.setToolTip("Optimize the 3D conformation of the added group while holding the parent molecule rigid.")
+        self.relax_checkbox.setToolTip(
+            "Optimize the 3D conformation of the added group while holding the parent molecule rigid."
+        )
         layout.addWidget(self.relax_checkbox)
 
         # Action buttons
@@ -164,7 +182,6 @@ class FunctionalGroupReplacer(QWidget):
         self.group_combo.blockSignals(False)
 
         self._update_group_preview(self.group_combo.currentText())
-
 
     def _on_category_changed(self, _category: str) -> None:
         self._populate_groups()
@@ -216,7 +233,9 @@ class FunctionalGroupReplacer(QWidget):
             return
 
         picker = vtk.vtkCellPicker()
-        ratio = widget.devicePixelRatioF() if hasattr(widget, "devicePixelRatioF") else 1.0
+        ratio = (
+            widget.devicePixelRatioF() if hasattr(widget, "devicePixelRatioF") else 1.0
+        )
         picker.SetTolerance(0.005)
         picker.Pick(x * ratio, (widget.height() - y) * ratio, 0, plotter.renderer)
         picked_actor = picker.GetActor()
@@ -232,7 +251,7 @@ class FunctionalGroupReplacer(QWidget):
             mol.GetAtoms(),
             key=lambda candidate: self._distance_sq(mol, candidate.GetIdx(), pos),
         )
-        if self._distance_sq(mol, closest_atom.GetIdx(), pos) > (0.45 ** 2):
+        if self._distance_sq(mol, closest_atom.GetIdx(), pos) > (0.45**2):
             return
 
         atom_idx = closest_atom.GetIdx()
@@ -250,12 +269,18 @@ class FunctionalGroupReplacer(QWidget):
 
     def _distance_sq(self, mol: Any, index: int, pos: Sequence[float]) -> float:
         point = mol.GetConformer().GetAtomPosition(index)
-        return (point.x - pos[0]) ** 2 + (point.y - pos[1]) ** 2 + (point.z - pos[2]) ** 2
+        return (
+            (point.x - pos[0]) ** 2 + (point.y - pos[1]) ** 2 + (point.z - pos[2]) ** 2
+        )
 
     def update_selection_display(self) -> None:
         """Update the dialog UI label and 3D viewport point label."""
         mol = self.context.current_mol
-        if self.selected_atom_idx is None or mol is None or self.selected_atom_idx >= mol.GetNumAtoms():
+        if (
+            self.selected_atom_idx is None
+            or mol is None
+            or self.selected_atom_idx >= mol.GetNumAtoms()
+        ):
             self.selection_label.setText("No atom selected")
             self.replace_button.setEnabled(False)
             self.clear_selection_labels()
@@ -268,7 +293,9 @@ class FunctionalGroupReplacer(QWidget):
         self.replace_button.setEnabled(True)
         self.show_atom_labels()
 
-    def add_selection_label(self, atom_idx: int, label_text: str = "1", color: str = "yellow") -> None:
+    def add_selection_label(
+        self, atom_idx: int, label_text: str = "1", color: str = "yellow"
+    ) -> None:
         """Add a 3D point label in the PyVista viewport matching main app style."""
         plotter = getattr(self.context, "plotter", None)
         if plotter is None or not hasattr(plotter, "add_point_labels"):
@@ -349,7 +376,9 @@ class FunctionalGroupReplacer(QWidget):
         group_smi = get_group_smiles(group_name)
 
         if mol is None or target is None or not group_smi:
-            QMessageBox.warning(self, "No selection", "Please click an atom in the 3D view first.")
+            QMessageBox.warning(
+                self, "No selection", "Please click an atom in the 3D view first."
+            )
             return
 
         try:
@@ -363,17 +392,23 @@ class FunctionalGroupReplacer(QWidget):
                 refresh()
             else:
                 main_window = self.context.get_main_window()
-                view_3d = getattr(main_window, "view_3d_manager", None) if main_window else None
+                view_3d = (
+                    getattr(main_window, "view_3d_manager", None)
+                    if main_window
+                    else None
+                )
                 if view_3d and hasattr(view_3d, "draw_molecule_3d"):
                     view_3d.draw_molecule_3d(new_mol)
 
             self.clear_selection()
-            self.context.show_status_message(f"Replaced atom {target} with {group_name}.")
+            self.context.show_status_message(
+                f"Replaced atom {target} with {group_name}."
+            )
         except (RuntimeError, ValueError, AttributeError) as exc:
             QMessageBox.critical(self, "Replacement failed", str(exc))
 
     def closeEvent(self, event: Any) -> None:
-        """Clean up 3D viewport labels and interactor filters on close."""
+        """Clean up 3D viewport labels, interactor filters, and window registration on close."""
         self.clear_selection_labels()
         plotter = getattr(self.context, "plotter", None)
         interactor = getattr(plotter, "interactor", None) if plotter else None
@@ -382,9 +417,13 @@ class FunctionalGroupReplacer(QWidget):
                 interactor.removeEventFilter(self._pick_filter)
             except (AttributeError, RuntimeError):
                 pass
+        if hasattr(self.context, "register_window"):
+            try:
+                self.context.register_window("functional_group_replacer", None)
+            except (AttributeError, RuntimeError):
+                pass
         super().closeEvent(event)
 
 
 # Backward-compatibility alias
 FunctionalGroupToolbox = FunctionalGroupReplacer
-

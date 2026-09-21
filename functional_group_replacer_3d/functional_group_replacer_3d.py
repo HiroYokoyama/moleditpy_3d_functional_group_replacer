@@ -83,4 +83,3 @@ __all__ = [
     "replace_atom_with_group",
     "search_groups",
 ]
-
