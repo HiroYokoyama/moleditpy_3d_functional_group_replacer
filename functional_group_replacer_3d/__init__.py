@@ -1,11 +1,11 @@
-"""3D Functional Group Toolbox plugin for MoleditPy."""
+"""3D Functional Group Replacer plugin for MoleditPy."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from .chemistry import relax_molecule_with_fixed_atoms, replace_atom_with_group
-from .dialog import FunctionalGroupToolbox
+from .dialog import FunctionalGroupReplacer, FunctionalGroupToolbox
 from .groups import (
     GROUP_CATEGORIES,
     GROUPS,
@@ -14,8 +14,8 @@ from .groups import (
     search_groups,
 )
 
-PLUGIN_NAME = "3D Functional Group Toolbox"
-PLUGIN_VERSION = "0.5.0"
+PLUGIN_NAME = "3D Functional Group Replacer"
+PLUGIN_VERSION = "0.6.0"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
@@ -24,7 +24,7 @@ PLUGIN_DEPENDENCIES = ["rdkit", "PyQt6"]
 PLUGIN_CATEGORY = "3D Editing"
 PLUGIN_TAGS = ["3D", "Editing", "Chemistry"]
 
-WINDOW_ID = "functional_group_toolbox"
+WINDOW_ID = "functional_group_replacer"
 _context: Any | None = None
 _dialog_opened: bool = False
 _current_settings: dict[str, Any] = {
@@ -34,8 +34,8 @@ _current_settings: dict[str, Any] = {
 }
 
 
-def _open_toolbox() -> None:
-    """Open or focus the 3D Functional Group Toolbox dialog."""
+def _open_replacer() -> None:
+    """Open or focus the 3D Functional Group Replacer dialog."""
     global _dialog_opened
     if _context is None:
         return
@@ -48,7 +48,7 @@ def _open_toolbox() -> None:
         existing.activateWindow()
         return
 
-    window = FunctionalGroupToolbox(_context)
+    window = FunctionalGroupReplacer(_context)
     if _current_settings.get("last_category") in GROUP_CATEGORIES:
         window.category_combo.setCurrentText(_current_settings["last_category"])
     if _current_settings.get("last_group") in GROUPS:
@@ -64,7 +64,8 @@ def initialize(context: Any) -> None:
     global _context
     _context = context
 
-    context.add_menu_action("3D Edit/3D Functional Group Toolbox...", _open_toolbox)
+    context.add_menu_action("3D Edit/3D Functional Group Replacer...", _open_replacer)
+
 
     def save_state() -> dict[str, Any]:
         if not _dialog_opened:
@@ -119,6 +120,7 @@ __all__ = [
     "PLUGIN_SUPPORTED_PYTHON_VERSION",
     "PLUGIN_TAGS",
     "PLUGIN_VERSION",
+    "FunctionalGroupReplacer",
     "FunctionalGroupToolbox",
     "get_group_smiles",
     "get_groups_by_category",
@@ -127,3 +129,4 @@ __all__ = [
     "replace_atom_with_group",
     "search_groups",
 ]
+

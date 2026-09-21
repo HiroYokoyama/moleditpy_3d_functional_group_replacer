@@ -3,8 +3,8 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "moleditpy-3d-functional-group-toolbox"
-version = "0.5.0"
+name = "moleditpy-3d-functional-group-replacer"
+version = "0.6.0"
 description = "3D Functional Group replacement plugin for MoleditPy"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
@@ -16,7 +16,8 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["functional_group_toolbox_3d*"]
+include = ["functional_group_replacer_3d*"]
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

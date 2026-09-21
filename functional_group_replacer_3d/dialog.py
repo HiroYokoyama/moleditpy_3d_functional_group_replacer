@@ -51,7 +51,7 @@ class _AtomPickFilter(QObject):
         return False
 
 
-class FunctionalGroupToolbox(QWidget):
+class FunctionalGroupReplacer(QWidget):
     """Interactive functional group replacement tool with real-time 3D picking and labels."""
 
     def __init__(self, context: Any):
@@ -66,13 +66,13 @@ class FunctionalGroupToolbox(QWidget):
 
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
-        self.setWindowTitle("3D Functional Group Toolbox")
+        self.setWindowTitle("3D Functional Group Replacer")
         self.resize(380, 310)
 
         self._init_ui()
         self._install_3d_picking()
         self._position_near_parent()
-        self.context.register_window("functional_group_toolbox", self)
+        self.context.register_window("functional_group_replacer", self)
 
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -383,3 +383,8 @@ class FunctionalGroupToolbox(QWidget):
             except (AttributeError, RuntimeError):
                 pass
         super().closeEvent(event)
+
+
+# Backward-compatibility alias
+FunctionalGroupToolbox = FunctionalGroupReplacer
+

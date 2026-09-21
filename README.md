@@ -1,4 +1,4 @@
-# 3D Functional Group Toolbox for MoleditPy
+# 3D Functional Group Replacer for MoleditPy
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22866924.svg)](https://doi.org/10.5281/zenodo.22866924)
 [![CI](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox/actions/workflows/ci.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox/actions/workflows/ci.yml)
@@ -22,7 +22,7 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
   - *Nitrogen & Amine*: Amino, Methylamino, Dimethylamino, Acetamido, Cyano, Nitro, Azido, Isocyanato, Isothiocyanato
   - *Halogen*: Fluoro, Chloro, Bromo, Iodo
   - *Sulfur & Phosphorus*: Thiol, Methylsulfanyl, Methylsulfinyl, Methylsulfonyl, Sulfo, Sulfamoyl, Triflyl, Phosphono
-- **Real-Time Search & Category Filtering**: Filter groups instantly by category dropdown or by typing in the search box (e.g. typing `phenyl`, `amino`, or `cf3`).
+- **Real-Time Search by Name or SMILES**: Filter groups instantly by category dropdown or by typing in the search box (e.g. typing `phenyl`, `amino`, or SMILES like `c1ccccc1`, `C(=O)O`).
 - **Physically Realistic 3D Conformation**: Calculates the original bond vector from neighbor to target atom, aligns the attachment bond along this vector, and performs constrained **MMFF94 / UFF force field minimization** holding all parent atoms completely rigid.
 - **Full Undo/Redo & State Persistence**: Pushes state checkpoints to MoleditPy's undo stack and preserves your last-used category, group, and relaxation options between sessions.
 
@@ -33,17 +33,17 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
 ### Via MoleditPy Plugin Manager (Recommended)
 1. Open MoleditPy.
 2. Navigate to **Plugins** > **Plugin Manager...**.
-3. Locate **3D Functional Group Toolbox** and click **Install**.
+3. Locate **3D Functional Group Replacer** and click **Install**.
 
 ### Manual Installation
 Clone or download this repository into your MoleditPy plugins directory:
 
 ```bash
 # On Windows:
-git clone https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox.git %USERPROFILE%\.moleditpy\plugins\functional_group_toolbox_3d
+git clone https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox.git %USERPROFILE%\.moleditpy\plugins\functional_group_replacer_3d
 
 # On Linux/macOS:
-git clone https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox.git ~/.moleditpy/plugins/functional_group_toolbox_3d
+git clone https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox.git ~/.moleditpy/plugins/functional_group_replacer_3d
 ```
 
 Restart MoleditPy or run **Plugins** > **Reload Plugins**.
@@ -53,13 +53,13 @@ Restart MoleditPy or run **Plugins** > **Reload Plugins**.
 ## How to Use
 
 1. Open a molecule in MoleditPy and enter the **3D View**.
-2. Open the toolbox from **3D Edit** > **3D Functional Group Toolbox...**.
+2. Open the tool from **3D Edit** > **3D Functional Group Replacer...**.
 3. **Select an Atom**: Click any atom in the 3D viewport (e.g., a hydrogen atom or halogen).
    - A yellow `"1"` label immediately pins to the selected atom in the 3D scene.
    - The dialog displays `Selected atom: C0 (index 0)`.
    - Clicking the atom again or pressing **Clear Selection** deselects it.
 4. **Choose a Functional Group**:
-   - Filter by **Category** or type in the **Search** box.
+   - Filter by **Category** or type in the **Search** box (supports group names and SMILES).
    - Select the desired functional group from the dropdown list.
 5. **Adjust Options**:
    - Keep **Relax group 3D geometry (MMFF/UFF)** checked for optimized geometry.
@@ -72,14 +72,14 @@ Restart MoleditPy or run **Plugins** > **Reload Plugins**.
 
 ```text
 moleditpy_3d_functional_group_toolbox/
-├── functional_group_toolbox_3d/
+├── functional_group_replacer_3d/
 │   ├── __init__.py                # Package metadata, lifecycle, and menu registration
 │   ├── chemistry.py               # Core replacement algorithm & constrained 3D relaxation
 │   ├── dialog.py                  # PyQt6 UI, 3D pick event filter & PyVista label management
 │   ├── groups.py                  # 50+ SMILES definitions and category index
-│   └── functional_group_toolbox_3d.py # Backward-compatible re-export module
+│   └── functional_group_replacer_3d.py # Backward-compatible re-export module
 ├── tests/
-│   ├── test_functional_group_toolbox_3d.py # Unit and GUI test suite
+│   ├── test_functional_group_replacer_3d.py # Unit and GUI test suite
 │   ├── test_api.py                # Static AST contract check against MoleditPy
 │   └── plugin_api_checker.py      # AST API analysis tool
 ├── .github/
@@ -92,6 +92,7 @@ moleditpy_3d_functional_group_toolbox/
 ├── LICENSE                        # GNU General Public License v3.0
 └── pyproject.toml                 # Package configuration
 ```
+
 
 ---
 

@@ -20,20 +20,23 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-import functional_group_toolbox_3d as module
-from functional_group_toolbox_3d.chemistry import (
+import functional_group_replacer_3d as module
+from functional_group_replacer_3d.chemistry import (
     relax_molecule_with_fixed_atoms,
     replace_atom_with_group,
 )
-from functional_group_toolbox_3d.dialog import FunctionalGroupToolbox, _AtomPickFilter
-from functional_group_toolbox_3d.groups import (
+from functional_group_replacer_3d.dialog import (
+    FunctionalGroupReplacer,
+    FunctionalGroupToolbox,
+    _AtomPickFilter,
+)
+from functional_group_replacer_3d.groups import (
     GROUP_CATEGORIES,
     GROUPS,
     get_group_smiles,
     get_groups_by_category,
     search_groups,
 )
-
 
 
 @pytest.fixture(scope="session")
@@ -47,7 +50,7 @@ def qapp():
 
 def test_package_metadata_and_public_exports():
     """Verify package public metadata and contract."""
-    assert module.PLUGIN_NAME == "3D Functional Group Toolbox"
+    assert module.PLUGIN_NAME == "3D Functional Group Replacer"
     assert hasattr(module, "PLUGIN_VERSION")
     assert module.PLUGIN_AUTHOR == "HiroYokoyama"
     assert module.PLUGIN_CATEGORY == "3D Editing"
@@ -56,12 +59,14 @@ def test_package_metadata_and_public_exports():
 
 
 def test_backward_compatible_module_import():
-    """Verify functional_group_toolbox_3d.py re-exports match package exports."""
-    import functional_group_toolbox_3d.functional_group_toolbox_3d as compat_mod
+    """Verify functional_group_replacer_3d.py re-exports match package exports."""
+    import functional_group_replacer_3d.functional_group_replacer_3d as compat_mod
     assert compat_mod.PLUGIN_NAME == module.PLUGIN_NAME
     assert compat_mod.GROUPS == GROUPS
+    assert compat_mod.FunctionalGroupReplacer is FunctionalGroupReplacer
     assert compat_mod.FunctionalGroupToolbox is FunctionalGroupToolbox
     assert compat_mod.replace_atom_with_group is replace_atom_with_group
+
 
 
 def test_group_library_and_categorization():
@@ -454,7 +459,7 @@ def test_dialog_replace_atom_action_and_fallbacks(qapp):
     # Error handling branch
     dlg.selected_atom_idx = 0
     with (
-        patch("functional_group_toolbox_3d.dialog.replace_atom_with_group", side_effect=RuntimeError("Test error")),
+        patch("functional_group_replacer_3d.dialog.replace_atom_with_group", side_effect=RuntimeError("Test error")),
         patch("PyQt6.QtWidgets.QMessageBox.critical") as mock_crit,
     ):
         dlg.replace_atom()
@@ -464,7 +469,7 @@ def test_dialog_replace_atom_action_and_fallbacks(qapp):
 
 
 def test_initialize_and_lifecycle_handlers(qapp):
-    """Test initialize(context), _open_toolbox, save, load, and reset handlers."""
+    """Test initialize(context), _open_replacer, save, load, and reset handlers."""
     mol = Chem.AddHs(Chem.MolFromSmiles("c1ccccc1"))
     AllChem.EmbedMolecule(mol)
 
@@ -485,17 +490,17 @@ def test_initialize_and_lifecycle_handlers(qapp):
 
     module.initialize(mock_context)
     mock_context.add_menu_action.assert_called_once_with(
-        "3D Edit/3D Functional Group Toolbox...", module._open_toolbox
+        "3D Edit/3D Functional Group Replacer...", module._open_replacer
     )
 
     # Trigger opening dialog
-    module._open_toolbox()
+    module._open_replacer()
     dlg = mock_context.register_window.call_args[0][1]
     mock_context.get_window.return_value = dlg
 
     # Opening while existing is visible raises it
     dlg.setVisible(True)
-    module._open_toolbox()
+    module._open_replacer()
 
     # Save state
     saved = handlers["save"]()
@@ -528,7 +533,7 @@ def test_dialog_position_near_parent(qapp):
     mock_context.plotter = mock_plotter
     mock_context.get_main_window.return_value = parent
 
-    dlg = FunctionalGroupToolbox(mock_context)
+    dlg = FunctionalGroupReplacer(mock_context)
     dlg._position_near_parent()
     assert dlg.x() >= 0
     assert dlg.y() >= 0
@@ -537,25 +542,25 @@ def test_dialog_position_near_parent(qapp):
 
 
 def test_standalone_module_execution():
-    """Test executing functional_group_toolbox_3d.py without an active parent package."""
+    """Test executing functional_group_replacer_3d.py without an active parent package."""
     import importlib.util
-    target_path = REPO_ROOT / "functional_group_toolbox_3d" / "functional_group_toolbox_3d.py"
+    target_path = REPO_ROOT / "functional_group_replacer_3d" / "functional_group_replacer_3d.py"
     spec = importlib.util.spec_from_file_location("__main__", target_path)
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     mod.__package__ = ""
     spec.loader.exec_module(mod)
-    assert hasattr(mod, "FunctionalGroupToolbox")
+    assert hasattr(mod, "FunctionalGroupReplacer")
 
 
 def test_lifecycle_edge_cases():
-    """Test _open_toolbox with no context, save_state before dialog opened, and reset when visible."""
+    """Test _open_replacer with no context, save_state before dialog opened, and reset when visible."""
     # Temporarily clear _context
     orig_context = module._context
     orig_opened = module._dialog_opened
     try:
         module._context = None
-        module._open_toolbox()  # Early return
+        module._open_replacer()  # Early return
 
         mock_context = MagicMock()
         mock_context.get_window.return_value = None
@@ -578,4 +583,5 @@ def test_lifecycle_edge_cases():
     finally:
         module._context = orig_context
         module._dialog_opened = orig_opened
+
 

@@ -9,7 +9,7 @@ if not __package__:
     _pkg_root = str(Path(__file__).resolve().parent.parent)
     if _pkg_root not in sys.path:
         sys.path.insert(0, _pkg_root)
-    from functional_group_toolbox_3d import (
+    from functional_group_replacer_3d import (
         PLUGIN_AUTHOR,
         PLUGIN_CATEGORY,
         PLUGIN_DEPENDENCIES,
@@ -21,15 +21,16 @@ if not __package__:
         PLUGIN_VERSION,
         initialize,
     )
-    from functional_group_toolbox_3d.chemistry import (
+    from functional_group_replacer_3d.chemistry import (
         relax_molecule_with_fixed_atoms,
         replace_atom_with_group,
     )
-    from functional_group_toolbox_3d.dialog import (
+    from functional_group_replacer_3d.dialog import (
+        FunctionalGroupReplacer,
         FunctionalGroupToolbox,
         _AtomPickFilter,
     )
-    from functional_group_toolbox_3d.groups import (
+    from functional_group_replacer_3d.groups import (
         GROUP_CATEGORIES,
         GROUPS,
         get_group_smiles,
@@ -50,7 +51,7 @@ else:
         initialize,
     )
     from .chemistry import relax_molecule_with_fixed_atoms, replace_atom_with_group
-    from .dialog import FunctionalGroupToolbox, _AtomPickFilter
+    from .dialog import FunctionalGroupReplacer, FunctionalGroupToolbox, _AtomPickFilter
     from .groups import (
         GROUP_CATEGORIES,
         GROUPS,
@@ -58,6 +59,7 @@ else:
         get_groups_by_category,
         search_groups,
     )
+
 
 __all__ = [
     "GROUPS",
@@ -71,6 +73,7 @@ __all__ = [
     "PLUGIN_SUPPORTED_PYTHON_VERSION",
     "PLUGIN_TAGS",
     "PLUGIN_VERSION",
+    "FunctionalGroupReplacer",
     "FunctionalGroupToolbox",
     "_AtomPickFilter",
     "get_group_smiles",
@@ -80,3 +83,4 @@ __all__ = [
     "replace_atom_with_group",
     "search_groups",
 ]
+
