@@ -58,15 +58,20 @@ jobs:
           zip -r "functional_group_toolbox_3d_${TAG}.zip" functional_group_toolbox_3d/ \
             --exclude "*/__pycache__/*" "*/.git/*"
 
-      - name: Create GitHub Release
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="$VERSION"
-          gh release create "v$TAG" \
-            --title "3D Functional Group Toolbox $TAG" \
-            --generate-notes \
-            "functional_group_toolbox_3d_${TAG}.zip"
+          ASSET="functional_group_toolbox_3d_${TAG}.zip"
+          if gh release view "v$TAG" >/dev/null 2>&1; then
+            gh release upload "v$TAG" "$ASSET" --clobber
+          else
+            gh release create "v$TAG" \
+              --title "3D Functional Group Toolbox $TAG" \
+              --generate-notes \
+              "$ASSET"
+          fi
 
       - name: Trigger moleditpy-plugins registry update
         if: success()
