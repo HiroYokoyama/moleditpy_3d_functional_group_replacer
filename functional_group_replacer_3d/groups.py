@@ -53,6 +53,7 @@ GROUPS: dict[str, str] = {
     "Carbamoyl": "[*:1]C(=O)N",
     "Acetoxy": "[*:1]OC(=O)C",
     "Trifluoroacetyl": "[*:1]C(=O)C(F)(F)F",
+    "Hydroperoxyl": "[*:1]OO",
 
     # Nitrogen & Amine
     "Amino": "[*:1]N",
@@ -60,8 +61,14 @@ GROUPS: dict[str, str] = {
     "Dimethylamino": "[*:1]N(C)C",
     "Acetamido": "[*:1]NC(=O)C",
     "Cyano": "[*:1]C#N",
+    "Nitrile": "[*:1]C#N",
     "Nitro": "[*:1][N+](=O)[O-]",
+    "Nitroso": "[*:1]N=O",
+    "Hydrazinyl": "[*:1]NN",
+    "Ureido": "[*:1]NC(=O)N",
+    "Guanidino": "[*:1]NC(=N)N",
     "Azido": "[*:1][N]=[N+]=[N-]",
+    "Cyanato": "[*:1]OC#N",
     "Isocyanato": "[*:1]N=C=O",
     "Isothiocyanato": "[*:1]N=C=S",
 
@@ -71,7 +78,7 @@ GROUPS: dict[str, str] = {
     "Bromo": "[*:1]Br",
     "Iodo": "[*:1]I",
 
-    # Sulfur & Phosphorus
+    # Sulfur, Phosphorus & Boron
     "Thiol": "[*:1]S",
     "Methylsulfanyl": "[*:1]SC",
     "Methylsulfinyl": "[*:1]S(=O)C",
@@ -79,7 +86,9 @@ GROUPS: dict[str, str] = {
     "Sulfo": "[*:1]S(=O)(=O)O",
     "Sulfamoyl": "[*:1]S(=O)(=O)N",
     "Triflyl": "[*:1]S(=O)(=O)C(F)(F)F",
+    "Thiocyanato": "[*:1]SC#N",
     "Phosphono": "[*:1]P(=O)(O)O",
+    "Boryl": "[*:1]B(O)O",
 }
 
 GROUP_CATEGORIES: dict[str, list[str]] = {
@@ -100,18 +109,19 @@ GROUP_CATEGORIES: dict[str, list[str]] = {
     "Oxygen & Carbonyl": [
         "Hydroxyl", "Methoxy", "Ethoxy", "Phenoxy", "Formyl", "Acetyl",
         "Carboxyl", "Methoxycarbonyl", "Ethoxycarbonyl", "Carbamoyl",
-        "Acetoxy", "Trifluoroacetyl",
+        "Acetoxy", "Trifluoroacetyl", "Hydroperoxyl",
     ],
     "Nitrogen & Amine": [
         "Amino", "Methylamino", "Dimethylamino", "Acetamido", "Cyano",
-        "Nitro", "Azido", "Isocyanato", "Isothiocyanato",
+        "Nitrile", "Nitro", "Nitroso", "Hydrazinyl", "Ureido", "Guanidino",
+        "Azido", "Cyanato", "Isocyanato", "Isothiocyanato",
     ],
     "Halogen": [
         "Fluoro", "Chloro", "Bromo", "Iodo",
     ],
     "Sulfur & Phosphorus": [
         "Thiol", "Methylsulfanyl", "Methylsulfinyl", "Methylsulfonyl",
-        "Sulfo", "Sulfamoyl", "Triflyl", "Phosphono",
+        "Sulfo", "Sulfamoyl", "Triflyl", "Thiocyanato", "Phosphono", "Boryl",
     ],
 }
 

@@ -1,7 +1,7 @@
 # 3D Functional Group Replacer for MoleditPy
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22866924.svg)](https://doi.org/10.5281/zenodo.22866924)
-[![CI](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox/actions/workflows/ci.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox/actions/workflows/ci.yml)
+[![CI](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_replacer/actions/workflows/ci.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_replacer/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![MoleditPy](https://img.shields.io/badge/MoleditPy->=4.0.0-orange)](https://github.com/HiroYokoyama/python_molecular_editor)
@@ -14,15 +14,15 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
 
 - **Interactive 3D Picking by Default**: Simply click any atom in the 3D viewport to select it as the target. No manual atom index lookups or cumbersome toggle buttons required.
 - **Native 3D Selected Atom Label**: Displays an on-screen yellow numbered point label (`"1"`) directly attached to the selected atom in the 3D view (identical to MoleditPy's native 3D geometry editing dialogs). Deselecting, replacing, or closing automatically removes the label.
-- **50+ Curated Functional Groups**: Comprehensive library spanning:
+- **60+ Curated Functional Groups**: Comprehensive library spanning:
   - *Alkyl & Aliphatic*: Methyl, Ethyl, n-Propyl, Isopropyl, n-Butyl, sec-Butyl, Isobutyl, tert-Butyl, Neopentyl, Cyclopropyl, Cyclopentyl, Cyclohexyl, Trifluoromethyl
   - *Alkenyl & Alkynyl*: Vinyl, Allyl, Ethynyl, Propargyl
   - *Aryl & Heteroaryl*: Phenyl, 4-Tolyl, 4-Methoxyphenyl, 4-Fluorophenyl, 4-Chlorophenyl, 4-Nitrophenyl, Benzyl, 2-Pyridyl, 3-Pyridyl, 4-Pyridyl, 2-Thienyl, 2-Furyl
-  - *Oxygen & Carbonyl*: Hydroxyl, Methoxy, Ethoxy, Phenoxy, Formyl, Acetyl, Carboxyl, Methoxycarbonyl, Ethoxycarbonyl, Carbamoyl, Acetoxy, Trifluoroacetyl
-  - *Nitrogen & Amine*: Amino, Methylamino, Dimethylamino, Acetamido, Cyano, Nitro, Azido, Isocyanato, Isothiocyanato
+  - *Oxygen & Carbonyl*: Hydroxyl, Methoxy, Ethoxy, Phenoxy, Formyl, Acetyl, Carboxyl, Methoxycarbonyl, Ethoxycarbonyl, Carbamoyl, Acetoxy, Trifluoroacetyl, Hydroperoxyl
+  - *Nitrogen & Amine*: Amino, Methylamino, Dimethylamino, Acetamido, Cyano, Nitrile, Nitro, Nitroso, Hydrazinyl, Ureido, Guanidino, Azido, Cyanato, Isocyanato, Isothiocyanato
   - *Halogen*: Fluoro, Chloro, Bromo, Iodo
-  - *Sulfur & Phosphorus*: Thiol, Methylsulfanyl, Methylsulfinyl, Methylsulfonyl, Sulfo, Sulfamoyl, Triflyl, Phosphono
-- **Real-Time Search by Name or SMILES**: Filter groups instantly by category dropdown or by typing in the search box (e.g. typing `phenyl`, `amino`, or SMILES like `c1ccccc1`, `C(=O)O`).
+  - *Sulfur, Phosphorus & Boron*: Thiol, Methylsulfanyl, Methylsulfinyl, Methylsulfonyl, Sulfo, Sulfamoyl, Triflyl, Thiocyanato, Phosphono, Boryl
+- **Real-Time Search by Name or SMILES**: Filter groups instantly by category dropdown or by typing in the search box (e.g. typing `phenyl`, `amino`, `nitrile`, or SMILES like `c1ccccc1`, `C(=O)O`, `C#N`).
 - **Physically Realistic 3D Conformation**: Calculates the original bond vector from neighbor to target atom, aligns the attachment bond along this vector, and performs constrained **MMFF94 / UFF force field minimization** holding all parent atoms completely rigid.
 - **Full Undo/Redo & State Persistence**: Pushes state checkpoints to MoleditPy's undo stack and preserves your last-used category, group, and relaxation options between sessions.
 
@@ -40,10 +40,10 @@ Clone or download this repository into your MoleditPy plugins directory:
 
 ```bash
 # On Windows:
-git clone https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox.git %USERPROFILE%\.moleditpy\plugins\functional_group_replacer_3d
+git clone https://github.com/HiroYokoyama/moleditpy_3d_functional_group_replacer.git %USERPROFILE%\.moleditpy\plugins\functional_group_replacer_3d
 
 # On Linux/macOS:
-git clone https://github.com/HiroYokoyama/moleditpy_3d_functional_group_toolbox.git ~/.moleditpy/plugins/functional_group_replacer_3d
+git clone https://github.com/HiroYokoyama/moleditpy_3d_functional_group_replacer.git ~/.moleditpy/plugins/functional_group_replacer_3d
 ```
 
 Restart MoleditPy or run **Plugins** > **Reload Plugins**.
@@ -71,7 +71,7 @@ Restart MoleditPy or run **Plugins** > **Reload Plugins**.
 ## Architecture
 
 ```text
-moleditpy_3d_functional_group_toolbox/
+moleditpy_3d_functional_group_replacer/
 ├── functional_group_replacer_3d/
 │   ├── __init__.py                # Package metadata, lifecycle, and menu registration
 │   ├── chemistry.py               # Core replacement algorithm & constrained 3D relaxation

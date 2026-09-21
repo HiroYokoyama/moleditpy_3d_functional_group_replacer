@@ -108,8 +108,12 @@ def test_search_groups():
     assert search_groups("C1=CC=CC=C1")[0] == "Phenyl"
     assert search_groups("C(=O)O")[0] == "Carboxyl"
     assert search_groups("O=C(O)")[0] == "Carboxyl"
-    assert search_groups("C#N")[0] == "Cyano"
+    assert "Cyano" in search_groups("C#N")
+    assert "Nitrile" in search_groups("C#N")
+    assert "Nitrile" in search_groups("nitrile")
     assert search_groups("[N+](=O)[O-]")[0] == "Nitro"
+    assert "Boryl" in search_groups("B(O)O")
+    assert "Hydroperoxyl" in search_groups("OO")
 
     # Attachment point SMILES search
     assert "2-Pyridyl" in search_groups("*c1ncccc1")
