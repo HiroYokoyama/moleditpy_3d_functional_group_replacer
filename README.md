@@ -30,10 +30,12 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
 
 ## Installation
 
-### Via MoleditPy Plugin Manager (Recommended)
+### Via MoleditPy Plugin Installer (Recommended)
 1. Open MoleditPy.
-2. Navigate to **Plugins** > **Plugin Manager...**.
-3. Locate **3D Functional Group Replacer** and click **Install**.
+2. Navigate to **Plugins** > **Plugin Installer...** (or **Plugin Manager...**).
+3. Search or locate **3D Functional Group Replacer** and click **Install**.
+
+Alternatively, you can download it directly from the [MoleditPy Plugin Explorer](https://hiroyokoyama.github.io/moleditpy-plugins/explorer/?q=3D+Functional+Group+Replacer).
 
 ### Manual Installation
 Clone or download this repository into your MoleditPy plugins directory:
