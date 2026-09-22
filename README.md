@@ -4,7 +4,7 @@
 [![CI](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_replacer/actions/workflows/ci.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_replacer/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
-[![MoleditPy](https://img.shields.io/badge/MoleditPy->=4.0.0-orange)](https://github.com/HiroYokoyama/python_molecular_editor)
+[![MoleditPy](https://img.shields.io/badge/MoleditPy->=4.0.0-3577F7)](https://github.com/HiroYokoyama/python_molecular_editor)
 
 An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](https://github.com/HiroYokoyama/python_molecular_editor)**. Substitute any selected atom (such as a hydrogen or terminal group) with common functional groups in 3D space with automatic bond alignment and constrained force-field relaxation.
 
