@@ -22,7 +22,7 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
   - *Nitrogen & Amine*: Amino, Methylamino, Dimethylamino, Acetamido, Cyano, Nitrile, Nitro, Nitroso, Hydrazinyl, Ureido, Guanidino, Azido, Cyanato, Isocyanato, Isothiocyanato
   - *Halogen*: Fluoro, Chloro, Bromo, Iodo
   - *Sulfur, Phosphorus & Boron*: Thiol, Methylsulfanyl, Methylsulfinyl, Methylsulfonyl, Sulfo, Sulfamoyl, Triflyl, Thiocyanato, Phosphono, Boryl
-- **Real-Time Search by Name or SMILES**: Filter groups instantly by category dropdown or by typing in the search box (e.g. typing `phenyl`, `amino`, `nitrile`, or SMILES like `c1ccccc1`, `C(=O)O`, `C#N`).
+- **Real-Time Search by Name, Abbreviation or SMILES**: Filter groups instantly by category dropdown or by typing in the search box (e.g. typing `phenyl`, `amino`, `nitrile`, shorthand like `CF3`, `COOH`, `OMe`, `tBu`, or SMILES like `c1ccccc1`, `C(=O)O`, `C#N`).
 - **Physically Realistic 3D Conformation**: Calculates the original bond vector from neighbor to target atom, aligns the attachment bond along this vector, and performs constrained **MMFF94 / UFF force field minimization** holding all parent atoms completely rigid.
 - **Full Undo/Redo & State Persistence**: Pushes state checkpoints to MoleditPy's undo stack and preserves your last-used category, group, and relaxation options between sessions.
 
@@ -56,12 +56,12 @@ Restart MoleditPy or run **Plugins** > **Reload Plugins**.
 
 1. Open a molecule in MoleditPy and enter the **3D View**.
 2. Open the tool from **3D Edit** > **3D Functional Group Replacer...**.
-3. **Select an Atom**: Click any atom in the 3D viewport (e.g., a hydrogen atom or halogen).
+3. **Select an Atom**: Click any atom in the 3D viewport (e.g., a hydrogen atom or halogen). Selecting a heavy atom such as the carbon of a methyl group replaces it together with its hydrogens.
    - A yellow `"1"` label immediately pins to the selected atom in the 3D scene.
    - The dialog displays `Selected atom: C0 (index 0)`.
    - Clicking the atom again or pressing **Clear Selection** deselects it.
 4. **Choose a Functional Group**:
-   - Filter by **Category** or type in the **Search** box (supports group names and SMILES).
+   - Filter by **Category** or type in the **Search** box (supports group names, abbreviations and SMILES).
    - Select the desired functional group from the dropdown list.
 5. **Adjust Options**:
    - Keep **Relax group 3D geometry (MMFF/UFF)** checked for optimized geometry.

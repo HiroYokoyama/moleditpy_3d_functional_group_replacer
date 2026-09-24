@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from functools import cache, lru_cache
+
 # Comprehensive library of 1-attachment-point functional groups
 # The dummy atom [*:1] indicates the attachment point that connects to the parent molecule.
 GROUPS: dict[str, str] = {
@@ -160,7 +162,7 @@ GROUP_CATEGORIES: dict[str, list[str]] = {
         "Bromo",
         "Iodo",
     ],
-    "Sulfur & Phosphorus": [
+    "Sulfur, Phosphorus & Boron": [
         "Thiol",
         "Methylsulfanyl",
         "Methylsulfinyl",
@@ -175,6 +177,60 @@ GROUP_CATEGORIES: dict[str, list[str]] = {
 }
 
 
+# Common shorthand a chemist would type; matched case-insensitively and exactly.
+GROUP_ALIASES: dict[str, tuple[str, ...]] = {
+    "Methyl": ("Me", "CH3"),
+    "Ethyl": ("Et", "C2H5"),
+    "n-Propyl": ("Pr", "nPr", "n-Pr"),
+    "Isopropyl": ("iPr", "i-Pr"),
+    "n-Butyl": ("Bu", "nBu", "n-Bu"),
+    "sec-Butyl": ("sBu", "s-Bu"),
+    "Isobutyl": ("iBu", "i-Bu"),
+    "tert-Butyl": ("tBu", "t-Bu"),
+    "Cyclopropyl": ("cPr", "c-Pr"),
+    "Cyclohexyl": ("Cy", "cHex"),
+    "Trifluoromethyl": ("CF3",),
+    "Phenyl": ("Ph", "C6H5"),
+    "4-Tolyl": ("Tol", "p-Tol"),
+    "4-Methoxyphenyl": ("PMP",),
+    "Benzyl": ("Bn", "Bzl"),
+    "Hydroxyl": ("OH",),
+    "Methoxy": ("OMe", "OCH3"),
+    "Ethoxy": ("OEt",),
+    "Phenoxy": ("OPh",),
+    "Formyl": ("CHO",),
+    "Acetyl": ("Ac", "COCH3"),
+    "Carboxyl": ("COOH", "CO2H"),
+    "Methoxycarbonyl": ("CO2Me", "COOMe"),
+    "Ethoxycarbonyl": ("CO2Et", "COOEt"),
+    "Carbamoyl": ("CONH2",),
+    "Acetoxy": ("OAc",),
+    "Trifluoroacetyl": ("TFA", "COCF3"),
+    "Hydroperoxyl": ("OOH",),
+    "Amino": ("NH2",),
+    "Methylamino": ("NHMe",),
+    "Dimethylamino": ("NMe2",),
+    "Acetamido": ("NHAc",),
+    "Cyano": ("CN",),
+    "Nitrile": ("CN",),
+    "Nitro": ("NO2",),
+    "Nitroso": ("NO",),
+    "Azido": ("N3",),
+    "Isocyanato": ("NCO",),
+    "Isothiocyanato": ("NCS",),
+    "Thiol": ("SH",),
+    "Methylsulfanyl": ("SMe",),
+    "Methylsulfinyl": ("SOMe",),
+    "Methylsulfonyl": ("Ms", "SO2Me"),
+    "Sulfo": ("SO3H",),
+    "Sulfamoyl": ("SO2NH2",),
+    "Triflyl": ("Tf", "SO2CF3"),
+    "Thiocyanato": ("SCN",),
+    "Phosphono": ("PO3H2",),
+    "Boryl": ("B(OH)2",),
+}
+
+
 def get_group_smiles(name: str) -> str | None:
     """Retrieve the SMILES string for a named functional group."""
     return GROUPS.get(name)
@@ -182,82 +238,77 @@ def get_group_smiles(name: str) -> str | None:
 
 def get_groups_by_category(category: str) -> list[str]:
     """Retrieve a list of functional group names in the given category."""
-    return GROUP_CATEGORIES.get(category, list(GROUPS.keys()))
+    return list(GROUP_CATEGORIES.get(category, GROUPS))
+
+
+def _canonical(mol: object) -> str:
+    """Canonical SMILES with atom-map numbers cleared."""
+    from rdkit import Chem
+
+    for atom in mol.GetAtoms():
+        atom.SetAtomMapNum(0)
+    return Chem.MolToSmiles(mol)
+
+
+@cache
+def _group_canonical_forms(name: str) -> frozenset[str]:
+    """Canonical SMILES of a group, both with and without its attachment dummy."""
+    from rdkit import Chem
+
+    mol = Chem.MolFromSmiles(GROUPS[name])
+    if mol is None:
+        return frozenset()
+    with_dummy = _canonical(mol)
+    rw = Chem.RWMol(mol)
+    for idx in sorted(
+        (a.GetIdx() for a in rw.GetAtoms() if a.GetAtomicNum() == 0), reverse=True
+    ):
+        rw.RemoveAtom(idx)
+    return frozenset({with_dummy, _canonical(rw.GetMol())})
+
+
+@lru_cache(maxsize=256)
+def _canonical_query(query: str) -> str | None:
+    """Canonical SMILES of a search query, or None if it is not valid SMILES."""
+    try:
+        from rdkit import Chem, rdBase
+    except ImportError:
+        return None
+    # Typed text is usually not SMILES; keep RDKit's parse errors out of the log
+    # without switching RDKit logging off for the whole host application.
+    with rdBase.BlockLogs():
+        mol = Chem.MolFromSmiles(query)
+    return _canonical(mol) if mol is not None else None
 
 
 def search_groups(query: str, category: str = "All") -> list[str]:
-    """Filter group names matching query by name or SMILES."""
+    """Filter group names matching query by name, abbreviation or SMILES.
+
+    Exact matches (same structure, same SMILES text, or a known abbreviation
+    such as ``CF3`` or ``OMe``) come first, then name and SMILES substrings.
+    """
     q = query.strip()
-    pool = GROUP_CATEGORIES.get(category, list(GROUPS.keys()))
+    pool = get_groups_by_category(category)
     if not q:
         return pool
 
     q_lower = q.lower()
-
-    # Try parsing query as SMILES with RDKit to compare canonical SMILES
-    can_query = None
-    try:
-        from rdkit import Chem, RDLogger
-
-        RDLogger.DisableLog("rdApp.*")
-        mol = Chem.MolFromSmiles(q) or Chem.MolFromSmiles(f"[*:1]{q}")
-        if mol:
-            # strip dummy for canonical comparison
-            for a in mol.GetAtoms():
-                a.SetAtomMapNum(0)
-            can_query = Chem.MolToSmiles(mol)
-    except (ValueError, TypeError, RuntimeError):
-        can_query = None
+    can_query = _canonical_query(q)
 
     exact_matches = []
     sub_matches = []
-
     for name in pool:
         smi = GROUPS.get(name, "")
         smi_clean = smi.replace("[*:1]", "")
+        aliases = {a.lower() for a in GROUP_ALIASES.get(name, ())}
 
-        # 1. Canonical SMILES match via RDKit
-        if can_query:
-            try:
-                from rdkit import Chem
-
-                m = Chem.MolFromSmiles(smi)
-                if m:
-                    for a in m.GetAtoms():
-                        a.SetAtomMapNum(0)
-                    if Chem.MolToSmiles(m) == can_query:
-                        exact_matches.append(name)
-                        continue
-                    rw = Chem.RWMol(m)
-                    for d in [
-                        a.GetIdx() for a in rw.GetAtoms() if a.GetAtomicNum() == 0
-                    ]:
-                        rw.RemoveAtom(d)
-                    if Chem.MolToSmiles(rw.GetMol()) == can_query:
-                        exact_matches.append(name)
-                        continue
-            except (ValueError, TypeError, RuntimeError):
-                pass
-
-        # 2. Exact SMILES match (case-sensitive for SMILES)
-        if q == smi_clean or q == smi:
+        if (
+            (can_query and can_query in _group_canonical_forms(name))
+            or q in (smi, smi_clean)
+            or q_lower in aliases
+        ):
             exact_matches.append(name)
-            continue
-
-        # 3. Name match
-        if q_lower in name.lower():
-            sub_matches.append(name)
-            continue
-
-        # 4. Case-sensitive substring in SMILES
-        if len(q) >= 2 and (q in smi or q in smi_clean):
+        elif q_lower in name.lower() or (len(q) >= 2 and q in smi):
             sub_matches.append(name)
 
-    # Return exact SMILES matches first, then name/substring matches
-    seen = set()
-    result = []
-    for item in exact_matches + sub_matches:
-        if item not in seen:
-            seen.add(item)
-            result.append(item)
-    return result
+    return exact_matches + sub_matches

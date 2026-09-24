@@ -92,7 +92,7 @@ def test_group_library_and_categorization():
     assert len(get_groups_by_category("Oxygen & Carbonyl")) > 0
     assert len(get_groups_by_category("Nitrogen & Amine")) > 0
     assert len(get_groups_by_category("Halogen")) > 0
-    assert len(get_groups_by_category("Sulfur & Phosphorus")) > 0
+    assert len(get_groups_by_category("Sulfur, Phosphorus & Boron")) > 0
 
 
 def test_search_groups():
@@ -483,13 +483,14 @@ def test_dialog_replace_atom_action_and_fallbacks(qapp):
         dlg.replace_atom()
         assert mock_warn.called
 
-    # Successful replacement using fallback draw_molecule_3d
+    # Successful replacement goes through the current_mol setter (which redraws)
     dlg.selected_atom_idx = 6  # hydrogen atom
     dlg.update_selection_display()
     dlg.group_combo.setCurrentText("Methyl")
     dlg.replace_atom()
 
-    assert mock_view_3d.draw_molecule_3d.called
+    assert mock_context.current_mol is not mol
+    assert mock_context.current_mol.GetNumAtoms() == mol.GetNumAtoms() + 3
     assert mock_context.push_undo_checkpoint.called
     assert dlg.selected_atom_idx is None
 
@@ -678,3 +679,201 @@ def test_is_widget_alive_with_real_widget(qapp):
     w.close()
     qapp.sendPostedEvents(w, 52)
     assert module._is_widget_alive(w) is False
+
+
+def _embedded(smiles: str):
+    mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
+    AllChem.EmbedMolecule(mol, randomSeed=7)
+    return mol
+
+
+def _dist(conf, i, j):
+    return float(
+        np.linalg.norm(
+            np.array(conf.GetAtomPosition(i)) - np.array(conf.GetAtomPosition(j))
+        )
+    )
+
+
+def test_replacing_heavy_atom_drops_its_hydrogens():
+    """Replacing the CH3 carbon of toluene with OH must give phenol, not a valence error."""
+    toluene = _embedded("Cc1ccccc1")
+    res = replace_atom_with_group(toluene, 0, GROUPS["Hydroxyl"], relax=True)
+    assert Chem.MolToSmiles(Chem.RemoveHs(res)) == Chem.CanonSmiles("Oc1ccccc1")
+    # Ring atoms 1-6 precede every dropped hydrogen, so their indices are unchanged
+    for i in range(1, 7):
+        orig = np.array(toluene.GetConformer().GetAtomPosition(i))
+        new = np.array(res.GetConformer().GetAtomPosition(i))
+        assert np.allclose(new, orig, atol=1e-3)
+
+
+def test_replaced_hydrogen_gets_group_bond_length():
+    """Without relaxation, an H -> CH3 swap must not leave a 1.09 A C-C bond."""
+    benzene = _embedded("c1ccccc1")
+    res = replace_atom_with_group(benzene, 6, GROUPS["Methyl"], relax=False)
+    assert 1.4 < _dist(res.GetConformer(), 0, 6) < 1.6
+
+
+def test_replacement_is_deterministic_and_clash_free():
+    """Same input gives the same geometry, and the new group does not sit on the parent."""
+    benzene = _embedded("c1ccccc1")
+    a = replace_atom_with_group(benzene, 6, GROUPS["tert-Butyl"], relax=False)
+    b = replace_atom_with_group(benzene, 6, GROUPS["tert-Butyl"], relax=False)
+    assert np.allclose(a.GetConformer().GetPositions(), b.GetConformer().GetPositions())
+
+    pos = a.GetConformer().GetPositions()
+    parent = [i for i in range(benzene.GetNumAtoms()) if i != 6]
+    new = range(benzene.GetNumAtoms(), a.GetNumAtoms())
+    closest = min(np.linalg.norm(pos[i] - pos[j]) for i in new for j in parent)
+    assert closest > 1.0
+
+
+def test_replacement_keeps_target_atom_properties_and_input_intact():
+    """Host bookkeeping props on the target survive; the input molecule is not mutated."""
+    benzene = _embedded("c1ccccc1")
+    benzene.GetAtomWithIdx(6).SetIntProp("_original_atom_id", 42)
+    before = Chem.MolToSmiles(benzene)
+    res = replace_atom_with_group(benzene, 6, GROUPS["Methyl"], relax=False)
+    assert res.GetAtomWithIdx(6).GetIntProp("_original_atom_id") == 42
+    assert Chem.MolToSmiles(benzene) == before
+
+
+def test_replacement_rejects_bad_index_and_two_attachments():
+    mol = Chem.MolFromSmiles("CC")
+    with pytest.raises(ValueError, match="out of range"):
+        replace_atom_with_group(mol, 5, "[*:1]C")
+    with pytest.raises(ValueError, match="exactly one"):
+        replace_atom_with_group(mol, 1, "[*:1]CC[*:2]")
+
+
+def test_search_aliases_and_rdkit_logging_left_enabled():
+    """Abbreviations from the placeholder work, and search does not mute RDKit globally."""
+    from rdkit import rdBase
+
+    from functional_group_replacer_3d.groups import GROUP_ALIASES
+
+    assert search_groups("CF3")[0] == "Trifluoromethyl"
+    assert search_groups("COOH")[0] == "Carboxyl"
+    assert search_groups("ome")[0] == "Methoxy"
+    assert search_groups("not a smiles (") == []
+    assert "rdApp.error:enabled" in rdBase.LogStatus()
+    assert set(GROUP_ALIASES) <= set(GROUPS)
+
+
+def test_group_lists_are_copies():
+    get_groups_by_category("Halogen").append("Bogus")
+    search_groups("", category="Halogen").append("Bogus")
+    assert "Bogus" not in GROUP_CATEGORIES["Halogen"]
+
+
+def test_shim_does_not_duplicate_package_module():
+    """The compat module must share state with the package, not re-execute __init__."""
+    import functional_group_replacer_3d.functional_group_replacer_3d as compat_mod
+
+    assert "functional_group_replacer_3d.__init__" not in sys.modules
+    assert compat_mod.initialize is module.initialize
+
+
+def _dialog_with_picker(mol, picker):
+    mock_context = MagicMock()
+    mock_context.current_mol = mol
+    mock_context.plotter = MagicMock()
+    mock_context.get_main_window.return_value = None
+    dlg = FunctionalGroupReplacer(mock_context)
+    mock_vtk = MagicMock()
+    mock_vtk.vtkCellPicker.return_value = picker
+    widget = MagicMock()
+    widget.devicePixelRatioF.return_value = 1.0
+    widget.height.return_value = 600
+    return dlg, mock_vtk, widget
+
+
+def test_pick_ignores_empty_space_and_accepts_large_spheres(qapp):
+    mol = _embedded("c1ccccc1")
+    center = np.array(mol.GetConformer().GetAtomPosition(0))
+    picker = MagicMock()
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
+        # Nothing hit: the pick position is meaningless and must not select anything
+        picker.GetActor.return_value = None
+        picker.GetPickPosition.return_value = tuple(center)
+        dlg._pick_atom(1, 1, widget)
+        assert dlg.selected_atom_idx is None
+
+        # Front surface of a CPK-sized sphere, 1.7 A from the atom centre
+        picker.GetActor.return_value = MagicMock()
+        picker.GetPickPosition.return_value = tuple(center + np.array([0.0, 0.0, 1.7]))
+        dlg._pick_atom(1, 1, widget)
+        assert dlg.selected_atom_idx == 0
+    dlg.close()
+
+
+def test_stale_selection_is_not_applied_to_new_molecule(qapp):
+    mol = _embedded("c1ccccc1")
+    dlg, _vtk, _widget = _dialog_with_picker(mol, MagicMock())
+    dlg.selected_atom_idx = 6
+    dlg.update_selection_display()
+    assert dlg.replace_button.isEnabled()
+
+    # Host swaps in another molecule (undo, file load, ...)
+    dlg.context.current_mol = _embedded("CCO")
+    with patch("PyQt6.QtWidgets.QMessageBox.warning") as mock_warn:
+        dlg.replace_atom()
+    assert mock_warn.called
+    assert dlg.selected_atom_idx is None
+    assert not dlg.context.push_undo_checkpoint.called
+    dlg.close()
+
+
+def test_settings_survive_dialog_close_and_reject_bad_types(qapp):
+    mock_context = MagicMock()
+    mock_context.current_mol = None
+    mock_context.get_main_window.return_value = None
+    windows = {}
+    mock_context.register_window.side_effect = lambda k, w: windows.__setitem__(k, w)
+    mock_context.get_window.side_effect = windows.get
+    handlers = {}
+    mock_context.register_save_handler.side_effect = lambda h: handlers.setdefault(
+        "save", h
+    )
+    mock_context.register_load_handler.side_effect = lambda h: handlers.setdefault(
+        "load", h
+    )
+    mock_context.register_document_reset_handler.side_effect = lambda h: (
+        handlers.setdefault("reset", h)
+    )
+
+    orig_context, orig_opened = module._context, module._dialog_opened
+    orig_settings = dict(module._current_settings)
+    try:
+        module.initialize(mock_context)
+        module._open_replacer()
+        dlg = windows[module.WINDOW_ID]
+        dlg.category_combo.setCurrentText("Halogen")
+        dlg.group_combo.setCurrentText("Bromo")
+        dlg.relax_checkbox.setChecked(False)
+        dlg.close()
+
+        saved = handlers["save"]()["settings"]
+        assert saved == {
+            "last_category": "Halogen",
+            "last_group": "Bromo",
+            "relax": False,
+        }
+
+        handlers["load"]({"settings": {"relax": "yes", "last_group": 3, "junk": 1}})
+        assert module._current_settings["relax"] is False
+        assert module._current_settings["last_group"] == "Bromo"
+        assert "junk" not in module._current_settings
+
+        # Reopening restores the remembered choices
+        module._open_replacer()
+        dlg = windows[module.WINDOW_ID]
+        assert dlg.group_combo.currentText() == "Bromo"
+        assert not dlg.relax_checkbox.isChecked()
+        dlg.close()
+    finally:
+        module._context, module._dialog_opened = orig_context, orig_opened
+        module._current_settings.clear()
+        module._current_settings.update(orig_settings)

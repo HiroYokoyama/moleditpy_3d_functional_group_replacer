@@ -31,7 +31,7 @@ python -m pytest tests/test_api.py -v
 - Keep interactive 3D atom selection active by default; do not introduce manual index comboboxes or selection toggle buttons.
 - Ensure 3D viewport point labels (`"1"`) are displayed on selected atoms and properly cleaned up when deselected, replaced, or closed.
 - Do not assert hardcoded version numbers in tests.
-- Keep `functional_group_toolbox_3d.py` as a backward-compatible shim re-exporting the modular package components.
+- Keep `functional_group_replacer_3d/functional_group_replacer_3d.py` as a backward-compatible shim re-exporting the modular package components.
 - Ensure all new functional groups have valid SMILES with a single `[*:1]` attachment point.
 
 ## Commits

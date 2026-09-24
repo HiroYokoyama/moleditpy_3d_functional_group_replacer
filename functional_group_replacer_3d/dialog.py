@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
 from typing import Any
 
-from PyQt6.QtCore import QEvent, QObject, Qt
+import numpy as np
+from PyQt6.QtCore import QEvent, QObject, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -21,9 +21,23 @@ from PyQt6.QtWidgets import (
 )
 
 from .chemistry import replace_atom_with_group
-from .groups import GROUP_CATEGORIES, get_group_smiles, search_groups
+from .groups import GROUP_CATEGORIES, GROUPS, get_group_smiles, search_groups
 
 logger = logging.getLogger(__name__)
+
+WINDOW_ID = "functional_group_replacer"
+
+DEFAULT_SETTINGS: dict[str, Any] = {
+    "last_category": "All",
+    "last_group": "Methyl",
+    "relax": True,
+}
+
+# Squared screen distance (px^2) below which a press/release pair is a click, not a drag.
+_CLICK_MOVE_TOLERANCE_SQ = 25
+# A picked surface point lies up to one display radius from the atom centre;
+# 2.5 A covers the largest CPK spheres.
+_MAX_PICK_DISTANCE = 2.5
 
 
 class _AtomPickFilter(QObject):
@@ -45,13 +59,14 @@ class _AtomPickFilter(QObject):
             self.press_pos = event.position().toPoint()
         elif (
             event.type() == QEvent.Type.MouseButtonRelease
+            and event.button() == Qt.MouseButton.LeftButton
             and self.press_pos is not None
         ):
             pos = event.position().toPoint()
             dx = pos.x() - self.press_pos.x()
             dy = pos.y() - self.press_pos.y()
             # Threshold to distinguish a click from a camera drag/rotation
-            if dx * dx + dy * dy <= 25:
+            if dx * dx + dy * dy <= _CLICK_MOVE_TOLERANCE_SQ:
                 self.callback(pos.x(), pos.y(), obj)
             self.press_pos = None
         return False
@@ -59,6 +74,9 @@ class _AtomPickFilter(QObject):
 
 class FunctionalGroupReplacer(QWidget):
     """Interactive functional group replacement tool with real-time 3D picking and labels."""
+
+    # Emitted with the current settings whenever the user changes one.
+    settings_changed = pyqtSignal(dict)
 
     def __init__(self, context: Any):
         parent = (
@@ -70,6 +88,9 @@ class FunctionalGroupReplacer(QWidget):
         self.context = context
         self._pick_filter: _AtomPickFilter | None = None
         self.selected_atom_idx: int | None = None
+        # Molecule the selection index refers to; a different current molecule
+        # (undo, file load, another tool) makes the index meaningless.
+        self._selected_mol: Any = None
         self.selection_labels: list[Any] = []
 
         self.setWindowFlags(Qt.WindowType.Window | Qt.WindowType.WindowStaysOnTopHint)
@@ -80,7 +101,7 @@ class FunctionalGroupReplacer(QWidget):
         self._init_ui()
         self._install_3d_picking()
         self._position_near_parent()
-        self.context.register_window("functional_group_replacer", self)
+        self.context.register_window(WINDOW_ID, self)
 
     def _init_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -104,8 +125,7 @@ class FunctionalGroupReplacer(QWidget):
         cat_layout = QHBoxLayout()
         cat_layout.addWidget(QLabel("Category:"))
         self.category_combo = QComboBox()
-        self.category_combo.addItems(list(GROUP_CATEGORIES.keys()))
-        self.category_combo.currentTextChanged.connect(self._on_category_changed)
+        self.category_combo.addItems(list(GROUP_CATEGORIES))
         cat_layout.addWidget(self.category_combo, stretch=1)
         layout.addLayout(cat_layout)
 
@@ -117,7 +137,6 @@ class FunctionalGroupReplacer(QWidget):
             "Filter groups by name or SMILES (e.g. phenyl, c1ccccc1, COOH, CF3)..."
         )
         self.search_input.setClearButtonEnabled(True)
-        self.search_input.textChanged.connect(self._on_search_changed)
         search_layout.addWidget(self.search_input, stretch=1)
         layout.addLayout(search_layout)
 
@@ -125,7 +144,6 @@ class FunctionalGroupReplacer(QWidget):
         group_layout = QHBoxLayout()
         group_layout.addWidget(QLabel("Group:"))
         self.group_combo = QComboBox()
-        self.group_combo.currentTextChanged.connect(self._update_group_preview)
         group_layout.addWidget(self.group_combo, stretch=1)
         layout.addLayout(group_layout)
 
@@ -164,37 +182,65 @@ class FunctionalGroupReplacer(QWidget):
 
         self._populate_groups()
 
-    def _populate_groups(self) -> None:
+        # Connected last so no handler runs against a half-built dialog.
+        self.category_combo.currentTextChanged.connect(self._populate_groups)
+        self.search_input.textChanged.connect(self._populate_groups)
+        self.group_combo.currentTextChanged.connect(self._on_group_changed)
+        self.relax_checkbox.toggled.connect(self._emit_settings)
+
+    def _populate_groups(self, *_args: Any) -> None:
         """Populate the group combo box based on current category and search text."""
-        selected_category = self.category_combo.currentText()
-        query = self.search_input.text().strip()
+        filtered = search_groups(
+            self.search_input.text(), category=self.category_combo.currentText()
+        )
 
-        filtered = search_groups(query, category=selected_category)
-
-        self.group_combo.blockSignals(True)
         current = self.group_combo.currentText()
+        self.group_combo.blockSignals(True)
         self.group_combo.clear()
         self.group_combo.addItems(filtered)
         if current in filtered:
             self.group_combo.setCurrentText(current)
-        elif filtered:
-            self.group_combo.setCurrentIndex(0)
         self.group_combo.blockSignals(False)
 
-        self._update_group_preview(self.group_combo.currentText())
+        self._on_group_changed(self.group_combo.currentText())
 
-    def _on_category_changed(self, _category: str) -> None:
-        self._populate_groups()
-
-    def _on_search_changed(self, _text: str) -> None:
-        self._populate_groups()
-
-    def _update_group_preview(self, group_name: str) -> None:
+    def _on_group_changed(self, group_name: str) -> None:
         smi = get_group_smiles(group_name)
-        if smi:
-            self.preview_label.setText(f"SMILES: {smi}")
-        else:
-            self.preview_label.setText("")
+        self.preview_label.setText(f"SMILES: {smi}" if smi else "")
+        self.replace_button.setEnabled(
+            self.selected_atom_idx is not None and smi is not None
+        )
+        self._emit_settings()
+
+    def get_settings(self) -> dict[str, Any]:
+        """Return the user-facing choices worth persisting with the document."""
+        return {
+            "last_category": self.category_combo.currentText(),
+            "last_group": self.group_combo.currentText(),
+            "relax": self.relax_checkbox.isChecked(),
+        }
+
+    def apply_settings(self, settings: dict[str, Any]) -> None:
+        """Restore persisted choices, ignoring values that are no longer valid."""
+        # Snapshot first: each widget change emits settings_changed, and a
+        # listener may be updating the very dict we were handed.
+        settings = dict(settings)
+        category = settings.get("last_category")
+        if category in GROUP_CATEGORIES:
+            self.category_combo.setCurrentText(category)
+        group = settings.get("last_group")
+        if group in GROUPS:
+            if self.group_combo.findText(group) < 0:
+                # The saved group is hidden by the current category/search filter.
+                self.search_input.clear()
+                self.category_combo.setCurrentText("All")
+            self.group_combo.setCurrentText(group)
+        relax = settings.get("relax")
+        if isinstance(relax, bool):
+            self.relax_checkbox.setChecked(relax)
+
+    def _emit_settings(self, *_args: Any) -> None:
+        self.settings_changed.emit(self.get_settings())
 
     def _position_near_parent(self) -> None:
         """Place the tool predictably near the host window and on-screen."""
@@ -212,10 +258,13 @@ class FunctionalGroupReplacer(QWidget):
         y = max(bounds.top(), min(y, bounds.bottom() - self.height()))
         self.move(x, y)
 
+    def _interactor(self) -> Any:
+        plotter = getattr(self.context, "plotter", None)
+        return getattr(plotter, "interactor", None) if plotter is not None else None
+
     def _install_3d_picking(self) -> None:
         """Install interactive pick filter on the 3D plotter interactor (default ON)."""
-        plotter = getattr(self.context, "plotter", None)
-        interactor = getattr(plotter, "interactor", None) if plotter else None
+        interactor = self._interactor()
         if interactor is not None:
             self._pick_filter = _AtomPickFilter(self._pick_atom, self)
             interactor.installEventFilter(self._pick_filter)
@@ -239,6 +288,9 @@ class FunctionalGroupReplacer(QWidget):
         picker.SetTolerance(0.005)
         picker.Pick(x * ratio, (widget.height() - y) * ratio, 0, plotter.renderer)
         picked_actor = picker.GetActor()
+        if picked_actor is None:
+            # Clicked empty space; the pick position is meaningless.
+            return
 
         main_window = self.context.get_main_window()
         view_3d = getattr(main_window, "view_3d_manager", None) if main_window else None
@@ -246,51 +298,50 @@ class FunctionalGroupReplacer(QWidget):
         if atom_actor is not None and picked_actor is not atom_actor:
             return
 
-        pos = picker.GetPickPosition()
-        closest_atom = min(
-            mol.GetAtoms(),
-            key=lambda candidate: self._distance_sq(mol, candidate.GetIdx(), pos),
-        )
-        if self._distance_sq(mol, closest_atom.GetIdx(), pos) > (0.45**2):
+        coords = np.asarray(mol.GetConformer().GetPositions(), dtype=float)
+        dist_sq = np.sum((coords - np.asarray(picker.GetPickPosition())) ** 2, axis=1)
+        atom_idx = int(np.argmin(dist_sq))
+        if dist_sq[atom_idx] > _MAX_PICK_DISTANCE**2:
             return
 
-        atom_idx = closest_atom.GetIdx()
         # Toggle selection if the same atom is clicked
-        if self.selected_atom_idx == atom_idx:
+        if self.selected_atom_idx == atom_idx and self._selected_mol is mol:
             self.clear_selection()
             self.context.show_status_message("Atom selection cleared.")
             return
 
         self.selected_atom_idx = atom_idx
+        self._selected_mol = mol
         self.update_selection_display()
+        symbol = mol.GetAtomWithIdx(atom_idx).GetSymbol()
         self.context.show_status_message(
-            f"Selected atom {atom_idx} ({closest_atom.GetSymbol()}) for replacement."
+            f"Selected atom {atom_idx} ({symbol}) for replacement."
         )
 
-    def _distance_sq(self, mol: Any, index: int, pos: Sequence[float]) -> float:
-        point = mol.GetConformer().GetAtomPosition(index)
+    def _selection_is_current(self, mol: Any) -> bool:
+        """True if the selected index still refers to an atom of `mol`."""
         return (
-            (point.x - pos[0]) ** 2 + (point.y - pos[1]) ** 2 + (point.z - pos[2]) ** 2
+            self.selected_atom_idx is not None
+            and mol is not None
+            and (self._selected_mol is None or self._selected_mol is mol)
+            and 0 <= self.selected_atom_idx < mol.GetNumAtoms()
         )
 
     def update_selection_display(self) -> None:
         """Update the dialog UI label and 3D viewport point label."""
         mol = self.context.current_mol
-        if (
-            self.selected_atom_idx is None
-            or mol is None
-            or self.selected_atom_idx >= mol.GetNumAtoms()
-        ):
-            self.selection_label.setText("No atom selected")
-            self.replace_button.setEnabled(False)
-            self.clear_selection_labels()
+        if not self._selection_is_current(mol):
+            self.clear_selection()
             return
 
+        self._selected_mol = mol
         atom = mol.GetAtomWithIdx(self.selected_atom_idx)
         self.selection_label.setText(
             f"Selected atom: {atom.GetSymbol()}{atom.GetIdx()} (index {atom.GetIdx()})"
         )
-        self.replace_button.setEnabled(True)
+        self.replace_button.setEnabled(
+            get_group_smiles(self.group_combo.currentText()) is not None
+        )
         self.show_atom_labels()
 
     def add_selection_label(
@@ -311,13 +362,11 @@ class FunctionalGroupReplacer(QWidget):
         except (AttributeError, RuntimeError, TypeError):
             pass
 
-        conf = mol.GetConformer()
-        pt = conf.GetAtomPosition(atom_idx)
-        pos = [pt.x, pt.y, pt.z]
+        pt = mol.GetConformer().GetAtomPosition(atom_idx)
 
         try:
             label_actor = plotter.add_point_labels(
-                [pos],
+                [[pt.x, pt.y, pt.z]],
                 [label_text],
                 point_size=0,
                 font_size=12,
@@ -330,6 +379,7 @@ class FunctionalGroupReplacer(QWidget):
             )
             self.selection_labels.append(label_actor)
 
+            # add_point_labels may reset the camera; keep the user's view.
             if cam is not None:
                 try:
                     plotter.camera_position = cam
@@ -344,13 +394,13 @@ class FunctionalGroupReplacer(QWidget):
     def clear_selection_labels(self) -> None:
         """Remove all 3D label actors from the PyVista plotter."""
         plotter = getattr(self.context, "plotter", None)
-        if plotter is not None and hasattr(plotter, "remove_actor"):
-            for actor in self.selection_labels:
-                try:
-                    if actor is not None:
+        if self.selection_labels and plotter is not None:
+            if hasattr(plotter, "remove_actor"):
+                for actor in self.selection_labels:
+                    try:
                         plotter.remove_actor(actor)
-                except (AttributeError, RuntimeError, TypeError, ValueError):
-                    pass
+                    except (AttributeError, RuntimeError, TypeError, ValueError):
+                        pass
             if hasattr(plotter, "render"):
                 plotter.render()
         self.selection_labels.clear()
@@ -364,6 +414,7 @@ class FunctionalGroupReplacer(QWidget):
     def clear_selection(self) -> None:
         """Clear the current selection in UI and 3D view."""
         self.selected_atom_idx = None
+        self._selected_mol = None
         self.clear_selection_labels()
         self.selection_label.setText("No atom selected")
         self.replace_button.setEnabled(False)
@@ -375,53 +426,46 @@ class FunctionalGroupReplacer(QWidget):
         group_name = self.group_combo.currentText()
         group_smi = get_group_smiles(group_name)
 
-        if mol is None or target is None or not group_smi:
+        if not self._selection_is_current(mol):
+            self.clear_selection()
             QMessageBox.warning(
                 self, "No selection", "Please click an atom in the 3D view first."
             )
             return
+        if not group_smi:
+            QMessageBox.warning(
+                self, "No group", "Please choose a functional group to insert."
+            )
+            return
 
         try:
-            relax = self.relax_checkbox.isChecked()
-            new_mol = replace_atom_with_group(mol, target, group_smi, relax=relax)
-            self.context.current_molecule = new_mol
-            self.context.push_undo_checkpoint()
-
-            refresh = getattr(self.context, "refresh_3d_view", None)
-            if callable(refresh):
-                refresh()
-            else:
-                main_window = self.context.get_main_window()
-                view_3d = (
-                    getattr(main_window, "view_3d_manager", None)
-                    if main_window
-                    else None
-                )
-                if view_3d and hasattr(view_3d, "draw_molecule_3d"):
-                    view_3d.draw_molecule_3d(new_mol)
-
-            self.clear_selection()
-            self.context.show_status_message(
-                f"Replaced atom {target} with {group_name}."
+            new_mol = replace_atom_with_group(
+                mol, target, group_smi, relax=self.relax_checkbox.isChecked()
             )
-        except (RuntimeError, ValueError, AttributeError) as exc:
+        except (RuntimeError, ValueError) as exc:
             QMessageBox.critical(self, "Replacement failed", str(exc))
+            return
+
+        # Drop our label actors before the host rebuilds the scene.
+        self.clear_selection()
+        # The current_mol setter stores the molecule and redraws the 3D view.
+        self.context.current_mol = new_mol
+        self.context.push_undo_checkpoint()
+        self.context.show_status_message(f"Replaced atom {target} with {group_name}.")
 
     def closeEvent(self, event: Any) -> None:
         """Clean up 3D viewport labels, interactor filters, and window registration on close."""
         self.clear_selection_labels()
-        plotter = getattr(self.context, "plotter", None)
-        interactor = getattr(plotter, "interactor", None) if plotter else None
+        interactor = self._interactor()
         if interactor is not None and self._pick_filter is not None:
             try:
                 interactor.removeEventFilter(self._pick_filter)
             except (AttributeError, RuntimeError):
                 pass
-        if hasattr(self.context, "register_window"):
-            try:
-                self.context.register_window("functional_group_replacer", None)
-            except (AttributeError, RuntimeError):
-                pass
+        try:
+            self.context.register_window(WINDOW_ID, None)
+        except (AttributeError, RuntimeError):
+            pass
         super().closeEvent(event)
 
 

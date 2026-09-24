@@ -38,7 +38,7 @@ if not __package__:
         search_groups,
     )
 else:
-    from .__init__ import (
+    from . import (
         PLUGIN_AUTHOR,
         PLUGIN_CATEGORY,
         PLUGIN_DEPENDENCIES,

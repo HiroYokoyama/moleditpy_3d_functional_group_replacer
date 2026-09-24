@@ -5,8 +5,14 @@ from __future__ import annotations
 from typing import Any
 
 from .chemistry import relax_molecule_with_fixed_atoms, replace_atom_with_group
-from .dialog import FunctionalGroupReplacer, FunctionalGroupToolbox
+from .dialog import (
+    DEFAULT_SETTINGS,
+    WINDOW_ID,
+    FunctionalGroupReplacer,
+    FunctionalGroupToolbox,
+)
 from .groups import (
+    GROUP_ALIASES,
     GROUP_CATEGORIES,
     GROUPS,
     get_group_smiles,
@@ -15,7 +21,7 @@ from .groups import (
 )
 
 PLUGIN_NAME = "3D Functional Group Replacer"
-PLUGIN_VERSION = "0.8.3"
+PLUGIN_VERSION = "0.9.0"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
@@ -24,14 +30,9 @@ PLUGIN_DEPENDENCIES = ["rdkit", "PyQt6"]
 PLUGIN_CATEGORY = "3D Editing"
 PLUGIN_TAGS = ["Utility"]
 
-WINDOW_ID = "functional_group_replacer"
 _context: Any | None = None
 _dialog_opened: bool = False
-_current_settings: dict[str, Any] = {
-    "last_category": "All",
-    "last_group": "Methyl",
-    "relax": True,
-}
+_current_settings: dict[str, Any] = dict(DEFAULT_SETTINGS)
 
 
 def _is_widget_alive(widget: Any) -> bool:
@@ -53,6 +54,18 @@ def _is_widget_alive(widget: Any) -> bool:
         return False
 
 
+def _live_dialog() -> Any | None:
+    """Return the open replacer dialog, or None if there is none."""
+    if _context is None:
+        return None
+    dlg = _context.get_window(WINDOW_ID)
+    return dlg if _is_widget_alive(dlg) and hasattr(dlg, "apply_settings") else None
+
+
+def _remember_settings(settings: dict[str, Any]) -> None:
+    _current_settings.update(settings)
+
+
 def _open_replacer() -> None:
     """Open or focus the 3D Functional Group Replacer dialog."""
     global _dialog_opened
@@ -60,22 +73,44 @@ def _open_replacer() -> None:
         return
 
     _dialog_opened = True
-    existing = _context.get_window(WINDOW_ID)
-    if _is_widget_alive(existing):
-        existing.show()
-        existing.raise_()
-        existing.activateWindow()
-        return
-
-    window = FunctionalGroupReplacer(_context)
-    if _current_settings.get("last_category") in GROUP_CATEGORIES:
-        window.category_combo.setCurrentText(_current_settings["last_category"])
-    if _current_settings.get("last_group") in GROUPS:
-        window.group_combo.setCurrentText(_current_settings["last_group"])
-    window.relax_checkbox.setChecked(_current_settings.get("relax", True))
+    window = _live_dialog()
+    if window is None:
+        window = FunctionalGroupReplacer(_context)
+        window.apply_settings(_current_settings)
+        # Track every change so the choices survive the dialog being closed.
+        window.settings_changed.connect(_remember_settings)
     window.show()
     window.raise_()
     window.activateWindow()
+
+
+def _save_state() -> dict[str, Any]:
+    if not _dialog_opened:
+        return {}
+    return {"settings": dict(_current_settings)}
+
+
+def _load_state(data: Any) -> None:
+    saved = data.get("settings") if isinstance(data, dict) else None
+    if not isinstance(saved, dict):
+        return
+    # Only take known keys with the expected types from the project file.
+    for key, default in DEFAULT_SETTINGS.items():
+        if isinstance(saved.get(key), type(default)):
+            _current_settings[key] = saved[key]
+    dlg = _live_dialog()
+    if dlg is not None:
+        dlg.apply_settings(_current_settings)
+
+
+def _reset_state() -> None:
+    global _dialog_opened
+    dlg = _live_dialog()
+    if dlg is not None and dlg.isVisible():
+        return
+    _dialog_opened = False
+    _current_settings.clear()
+    _current_settings.update(DEFAULT_SETTINGS)
 
 
 def initialize(context: Any) -> None:
@@ -84,52 +119,14 @@ def initialize(context: Any) -> None:
     _context = context
 
     context.add_menu_action("3D Edit/3D Functional Group Replacer...", _open_replacer)
-
-    def save_state() -> dict[str, Any]:
-        if not _dialog_opened:
-            return {}
-        dlg = context.get_window(WINDOW_ID)
-        if _is_widget_alive(dlg) and hasattr(dlg, "group_combo"):
-            _current_settings["last_category"] = dlg.category_combo.currentText()
-            _current_settings["last_group"] = dlg.group_combo.currentText()
-            _current_settings["relax"] = dlg.relax_checkbox.isChecked()
-        return {"settings": dict(_current_settings)}
-
-    def load_state(data: Any) -> None:
-        if isinstance(data, dict):
-            saved = data.get("settings")
-            if isinstance(saved, dict):
-                _current_settings.update(saved)
-                dlg = context.get_window(WINDOW_ID)
-                if _is_widget_alive(dlg) and hasattr(dlg, "group_combo"):
-                    if _current_settings.get("last_category") in GROUP_CATEGORIES:
-                        dlg.category_combo.setCurrentText(
-                            _current_settings["last_category"]
-                        )
-                    if _current_settings.get("last_group") in GROUPS:
-                        dlg.group_combo.setCurrentText(_current_settings["last_group"])
-                    dlg.relax_checkbox.setChecked(_current_settings.get("relax", True))
-
-    def reset_state() -> None:
-        global _dialog_opened
-        dlg = context.get_window(WINDOW_ID)
-        if _is_widget_alive(dlg) and dlg.isVisible():
-            return
-        _dialog_opened = False
-        _current_settings["last_category"] = "All"
-        _current_settings["last_group"] = "Methyl"
-        _current_settings["relax"] = True
-
-    if hasattr(context, "register_save_handler"):
-        context.register_save_handler(save_state)
-    if hasattr(context, "register_load_handler"):
-        context.register_load_handler(load_state)
-    if hasattr(context, "register_document_reset_handler"):
-        context.register_document_reset_handler(reset_state)
+    context.register_save_handler(_save_state)
+    context.register_load_handler(_load_state)
+    context.register_document_reset_handler(_reset_state)
 
 
 __all__ = [
     "GROUPS",
+    "GROUP_ALIASES",
     "GROUP_CATEGORIES",
     "PLUGIN_AUTHOR",
     "PLUGIN_CATEGORY",
