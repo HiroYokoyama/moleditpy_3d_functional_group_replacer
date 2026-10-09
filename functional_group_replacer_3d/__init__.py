@@ -19,9 +19,10 @@ from .groups import (
     get_groups_by_category,
     search_groups,
 )
+from .settings import load_settings, save_settings
 
 PLUGIN_NAME = "3D Functional Group Replacer"
-PLUGIN_VERSION = "0.9.0"
+PLUGIN_VERSION = "1.0.0"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
@@ -64,6 +65,7 @@ def _live_dialog() -> Any | None:
 
 def _remember_settings(settings: dict[str, Any]) -> None:
     _current_settings.update(settings)
+    save_settings(_current_settings)
 
 
 def _open_replacer() -> None:
@@ -75,6 +77,8 @@ def _open_replacer() -> None:
     _dialog_opened = True
     window = _live_dialog()
     if window is None:
+        _current_settings.clear()
+        _current_settings.update(load_settings())
         window = FunctionalGroupReplacer(_context)
         window.apply_settings(_current_settings)
         # Track every change so the choices survive the dialog being closed.
@@ -87,36 +91,38 @@ def _open_replacer() -> None:
 def _save_state() -> dict[str, Any]:
     if not _dialog_opened:
         return {}
-    return {"settings": dict(_current_settings)}
+    return {"dialog_opened": True}
 
 
 def _load_state(data: Any) -> None:
-    saved = data.get("settings") if isinstance(data, dict) else None
-    if not isinstance(saved, dict):
-        return
-    # Only take known keys with the expected types from the project file.
-    for key, default in DEFAULT_SETTINGS.items():
-        if isinstance(saved.get(key), type(default)):
-            _current_settings[key] = saved[key]
+    # Legacy project preferences must not override the user's settings file.
+    _current_settings.clear()
+    _current_settings.update(load_settings())
     dlg = _live_dialog()
     if dlg is not None:
-        dlg.apply_settings(_current_settings)
+        blocked = dlg.blockSignals(True)
+        try:
+            dlg.apply_settings(_current_settings)
+        finally:
+            dlg.blockSignals(blocked)
 
 
 def _reset_state() -> None:
     global _dialog_opened
     dlg = _live_dialog()
+    if dlg is not None:
+        dlg.clear_selection()
     if dlg is not None and dlg.isVisible():
         return
     _dialog_opened = False
-    _current_settings.clear()
-    _current_settings.update(DEFAULT_SETTINGS)
 
 
 def initialize(context: Any) -> None:
     """Initialize the plugin within MoleditPy host context."""
     global _context
     _context = context
+    _current_settings.clear()
+    _current_settings.update(load_settings())
 
     context.add_menu_action("3D Edit/3D Functional Group Replacer...", _open_replacer)
     context.register_save_handler(_save_state)

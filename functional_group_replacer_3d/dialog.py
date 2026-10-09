@@ -22,16 +22,11 @@ from PyQt6.QtWidgets import (
 
 from .chemistry import replace_atom_with_group
 from .groups import GROUP_CATEGORIES, GROUPS, get_group_smiles, search_groups
+from .settings import DEFAULT_SETTINGS
 
 logger = logging.getLogger(__name__)
 
 WINDOW_ID = "functional_group_replacer"
-
-DEFAULT_SETTINGS: dict[str, Any] = {
-    "last_category": "All",
-    "last_group": "Methyl",
-    "relax": True,
-}
 
 # Squared screen distance (px^2) below which a press/release pair is a click, not a drag.
 _CLICK_MOVE_TOLERANCE_SQ = 25
@@ -108,11 +103,18 @@ class FunctionalGroupReplacer(QWidget):
         layout.setSpacing(8)
 
         # Instructions
-        instruction = QLabel(
+        self.instruction_label = QLabel(
             "Click an atom in the 3D view to select it for replacement."
         )
-        instruction.setWordWrap(True)
-        layout.addWidget(instruction)
+        self.instruction_label.setWordWrap(True)
+        layout.addWidget(self.instruction_label)
+
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("Click mode:"))
+        self.click_mode_combo = QComboBox()
+        self.click_mode_combo.addItems(["Click to select", "Click to replace"])
+        mode_layout.addWidget(self.click_mode_combo, stretch=1)
+        layout.addLayout(mode_layout)
 
         # Selection status display
         self.selection_label = QLabel("No atom selected")
@@ -152,6 +154,14 @@ class FunctionalGroupReplacer(QWidget):
         self.preview_label.setStyleSheet("color: #666; font-size: 11px;")
         layout.addWidget(self.preview_label)
 
+        self.terminal_hydrogen_checkbox = QCheckBox("Replace terminal hydrogen")
+        self.terminal_hydrogen_checkbox.setChecked(True)
+        self.terminal_hydrogen_checkbox.setToolTip(
+            "Click a hydrogen directly, or a heavy atom to target its first attached "
+            "terminal hydrogen (by atom index). Uncheck to replace the clicked atom itself."
+        )
+        layout.addWidget(self.terminal_hydrogen_checkbox)
+
         # 3D Relaxation option
         self.relax_checkbox = QCheckBox(
             "Relax group 3D geometry (MMFF/UFF force field)"
@@ -187,6 +197,42 @@ class FunctionalGroupReplacer(QWidget):
         self.search_input.textChanged.connect(self._populate_groups)
         self.group_combo.currentTextChanged.connect(self._on_group_changed)
         self.relax_checkbox.toggled.connect(self._emit_settings)
+        self.terminal_hydrogen_checkbox.toggled.connect(self._on_target_option_changed)
+        self.click_mode_combo.currentIndexChanged.connect(self._on_click_mode_changed)
+
+    def _on_click_mode_changed(self, *_args: Any) -> None:
+        self.clear_selection()
+        immediate = self.click_mode_combo.currentIndex() == 1
+        self.instruction_label.setText(
+            "Choose a group, then click an atom in the 3D view to replace it immediately."
+            if immediate
+            else "Click an atom in the 3D view to select it, then press Replace Selected Atom."
+        )
+        self._emit_settings()
+
+    def _on_target_option_changed(self, *_args: Any) -> None:
+        self.clear_selection()
+        self._emit_settings()
+
+    def _replacement_target(self, mol: Any, atom_idx: int) -> int:
+        """Resolve a click to an explicit terminal H, or the atom itself."""
+        if not self.terminal_hydrogen_checkbox.isChecked():
+            return atom_idx
+        atom = mol.GetAtomWithIdx(atom_idx)
+        candidates = [atom] if atom.GetAtomicNum() == 1 else atom.GetNeighbors()
+        hydrogens = [
+            a.GetIdx()
+            for a in candidates
+            if a.GetAtomicNum() == 1
+            and a.GetDegree() == 1
+            and a.GetNeighbors()[0].GetAtomicNum() > 1
+        ]
+        if not hydrogens:
+            raise ValueError(
+                "No terminal hydrogen on this atom. Click an explicit hydrogen or "
+                "uncheck 'Replace terminal hydrogen' to replace the atom itself."
+            )
+        return min(hydrogens)
 
     def _populate_groups(self, *_args: Any) -> None:
         """Populate the group combo box based on current category and search text."""
@@ -213,11 +259,13 @@ class FunctionalGroupReplacer(QWidget):
         self._emit_settings()
 
     def get_settings(self) -> dict[str, Any]:
-        """Return the user-facing choices worth persisting with the document."""
+        """Return user preferences for the companion settings file."""
         return {
             "last_category": self.category_combo.currentText(),
             "last_group": self.group_combo.currentText(),
             "relax": self.relax_checkbox.isChecked(),
+            "replace_terminal_hydrogen": self.terminal_hydrogen_checkbox.isChecked(),
+            "click_to_replace": self.click_mode_combo.currentIndex() == 1,
         }
 
     def apply_settings(self, settings: dict[str, Any]) -> None:
@@ -238,6 +286,12 @@ class FunctionalGroupReplacer(QWidget):
         relax = settings.get("relax")
         if isinstance(relax, bool):
             self.relax_checkbox.setChecked(relax)
+        terminal_hydrogen = settings.get("replace_terminal_hydrogen")
+        if isinstance(terminal_hydrogen, bool):
+            self.terminal_hydrogen_checkbox.setChecked(terminal_hydrogen)
+        click_to_replace = settings.get("click_to_replace")
+        if isinstance(click_to_replace, bool):
+            self.click_mode_combo.setCurrentIndex(int(click_to_replace))
 
     def _emit_settings(self, *_args: Any) -> None:
         self.settings_changed.emit(self.get_settings())
@@ -304,8 +358,20 @@ class FunctionalGroupReplacer(QWidget):
         if dist_sq[atom_idx] > _MAX_PICK_DISTANCE**2:
             return
 
-        # Toggle selection if the same atom is clicked
-        if self.selected_atom_idx == atom_idx and self._selected_mol is mol:
+        try:
+            atom_idx = self._replacement_target(mol, atom_idx)
+        except ValueError as exc:
+            self.clear_selection()
+            self.context.show_status_message(str(exc))
+            return
+
+        immediate = self.click_mode_combo.currentIndex() == 1
+        # Toggle selection only in click-to-select mode.
+        if (
+            not immediate
+            and self.selected_atom_idx == atom_idx
+            and self._selected_mol is mol
+        ):
             self.clear_selection()
             self.context.show_status_message("Atom selection cleared.")
             return
@@ -313,6 +379,9 @@ class FunctionalGroupReplacer(QWidget):
         self.selected_atom_idx = atom_idx
         self._selected_mol = mol
         self.update_selection_display()
+        if immediate:
+            self.replace_atom()
+            return
         symbol = mol.GetAtomWithIdx(atom_idx).GetSymbol()
         self.context.show_status_message(
             f"Selected atom {atom_idx} ({symbol}) for replacement."
@@ -439,6 +508,7 @@ class FunctionalGroupReplacer(QWidget):
             return
 
         try:
+            target = self._replacement_target(mol, target)
             new_mol = replace_atom_with_group(
                 mol, target, group_smi, relax=self.relax_checkbox.isChecked()
             )

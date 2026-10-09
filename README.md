@@ -12,7 +12,8 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
 
 ## Features
 
-- **Interactive 3D Picking by Default**: Simply click any atom in the 3D viewport to select it as the target. No manual atom index lookups or cumbersome toggle buttons required.
+- **Two 3D Click Modes**: Use **Click to select** (default) to select a target and apply it with the Replace button, or **Click to replace** to apply the chosen group immediately on each viewport click.
+- **Replace Terminal Hydrogen by Default**: The checked **Replace terminal hydrogen** option targets an explicit hydrogen directly, or the first attached terminal hydrogen when you click a heavy atom. Uncheck it to replace the clicked atom itself.
 - **Native 3D Selected Atom Label**: Displays an on-screen yellow numbered point label (`"1"`) directly attached to the selected atom in the 3D view (identical to MoleditPy's native 3D geometry editing dialogs). Deselecting, replacing, or closing automatically removes the label.
 - **60+ Curated Functional Groups**: Comprehensive library spanning:
   - *Alkyl & Aliphatic*: Methyl, Ethyl, n-Propyl, Isopropyl, n-Butyl, sec-Butyl, Isobutyl, tert-Butyl, Neopentyl, Cyclopropyl, Cyclopentyl, Cyclohexyl, Trifluoromethyl
@@ -24,7 +25,9 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
   - *Sulfur, Phosphorus & Boron*: Thiol, Methylsulfanyl, Methylsulfinyl, Methylsulfonyl, Sulfo, Sulfamoyl, Triflyl, Thiocyanato, Phosphono, Boryl
 - **Real-Time Search by Name, Abbreviation or SMILES**: Filter groups instantly by category dropdown or by typing in the search box (e.g. typing `phenyl`, `amino`, `nitrile`, shorthand like `CF3`, `COOH`, `OMe`, `tBu`, or SMILES like `c1ccccc1`, `C(=O)O`, `C#N`).
 - **Physically Realistic 3D Conformation**: Calculates the original bond vector from neighbor to target atom, aligns the attachment bond along this vector, and performs constrained **MMFF94 / UFF force field minimization** holding all parent atoms completely rigid.
-- **Full Undo/Redo & State Persistence**: Pushes state checkpoints to MoleditPy's undo stack and preserves your last-used category, group, and relaxation options between sessions.
+- **Full Undo/Redo & State Persistence**: Pushes state checkpoints to MoleditPy's undo stack and preserves your last-used category, group, click mode, terminal hydrogen, and relaxation options between sessions.
+
+Preferences are saved automatically in `functional_group_replacer_3d/settings.json`, following Section 2.7 of the MoleditPy V4 plugin development manual. The Plugin Installer preserves this file during updates. Opening a project or choosing File > New keeps these user preferences; project files do not store or override them. A missing or invalid settings file uses the defaults.
 
 ---
 
@@ -56,17 +59,19 @@ Restart MoleditPy or run **Plugins** > **Reload Plugins**.
 
 1. Open a molecule in MoleditPy and enter the **3D View**.
 2. Open the tool from **3D Edit** > **3D Functional Group Replacer...**.
-3. **Select an Atom**: Click any atom in the 3D viewport (e.g., a hydrogen atom or halogen). Selecting a heavy atom such as the carbon of a methyl group replaces it together with its hydrogens.
-   - A yellow `"1"` label immediately pins to the selected atom in the 3D scene.
-   - The dialog displays `Selected atom: C0 (index 0)`.
-   - Clicking the atom again or pressing **Clear Selection** deselects it.
-4. **Choose a Functional Group**:
+3. **Choose a Functional Group**:
    - Filter by **Category** or type in the **Search** box (supports group names, abbreviations and SMILES).
    - Select the desired functional group from the dropdown list.
-5. **Adjust Options**:
+4. **Adjust Options**:
+   - **Replace terminal hydrogen** starts checked. Click an explicit hydrogen to choose its bond direction, or click a heavy atom to use its attached terminal hydrogen with the lowest atom index. The heavy atom stays in place.
+   - This option requires an explicit hydrogen bonded to a heavy atom. If none is available, the status bar explains why the click cannot be used.
+   - Uncheck the option to replace the clicked atom itself. Replacing a heavy atom also removes its attached terminal hydrogens.
    - Keep **Relax group 3D geometry (MMFF/UFF)** checked for optimized geometry.
-6. **Apply**: Click **Replace Selected Atom**.
-   - The selected atom is substituted, the group is embedded in 3D, and the view updates automatically with full undo support (`Ctrl+Z`).
+5. **Choose a Click Mode and Apply**:
+   - **Click to select** (default): Click the target in the viewport. A yellow `"1"` label marks the atom that will be replaced, and the dialog shows its symbol and index. Press **Replace Selected Atom** to apply. Clicking the same target again or pressing **Clear Selection** deselects it.
+   - **Click to replace**: Choose the group first, then click a target in the viewport to replace it immediately. Each successful click creates an undo checkpoint.
+   - Switching the click mode or terminal hydrogen option clears the current selection.
+   - Both modes embed the group in 3D and update the view automatically with full undo support (`Ctrl+Z`).
 
 ---
 
@@ -79,6 +84,7 @@ moleditpy_3d_functional_group_replacer/
 │   ├── chemistry.py               # Core replacement algorithm & constrained 3D relaxation
 │   ├── dialog.py                  # PyQt6 UI, 3D pick event filter & PyVista label management
 │   ├── groups.py                  # 50+ SMILES definitions and category index
+│   ├── settings.py                # Validated, atomic companion JSON preferences
 │   └── functional_group_replacer_3d.py # Backward-compatible re-export module
 ├── tests/
 │   ├── test_functional_group_replacer_3d.py # Unit and GUI test suite

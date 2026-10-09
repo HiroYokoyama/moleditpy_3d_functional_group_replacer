@@ -7,3 +7,4 @@ dist/
 build/
 *.egg-info/
 .ruff_cache/
+functional_group_replacer_3d/settings.json

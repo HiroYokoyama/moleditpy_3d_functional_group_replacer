@@ -1,6 +1,8 @@
 import importlib.util
+import os
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 # Paths
 _TESTS_DIR = Path(__file__).resolve().parent
@@ -31,10 +33,22 @@ def _load_checker():
 
 
 class TestAPIChecker(unittest.TestCase):
-    @unittest.skipUnless(
-        HAS_APP, "Main application repository (python_molecular_editor) not found"
-    )
+    def test_missing_main_app_fails_in_ci(self):
+        with patch(f"{__name__}.HAS_APP", False), patch.dict(os.environ, {"CI": "true"}):
+            with self.assertRaisesRegex(AssertionError, "must be checked in CI"):
+                self.test_no_unknown_api_accesses()
+
+    def test_missing_main_app_skips_outside_ci(self):
+        with patch(f"{__name__}.HAS_APP", False), patch.dict(os.environ, {"CI": ""}):
+            with self.assertRaises(unittest.SkipTest):
+                self.test_no_unknown_api_accesses()
+
     def test_no_unknown_api_accesses(self):
+        if not HAS_APP:
+            message = "Main application repository (python_molecular_editor) not found"
+            if os.environ.get("CI"):
+                self.fail(message + "; API compatibility must be checked in CI")
+            self.skipTest(message)
         checker_mod = _load_checker()
 
         # Build the APIInfo from the main app

@@ -21,6 +21,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import functional_group_replacer_3d as module
+from functional_group_replacer_3d import settings as settings_module
 from functional_group_replacer_3d.chemistry import (
     relax_molecule_with_fixed_atoms,
     replace_atom_with_group,
@@ -46,6 +47,11 @@ def qapp():
     if app is None:
         app = QApplication(["--platform", "offscreen"])
     return app
+
+
+@pytest.fixture(autouse=True)
+def isolated_settings_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings_module, "SETTINGS_FILE", tmp_path / "settings.json")
 
 
 def test_package_metadata_and_public_exports():
@@ -424,6 +430,7 @@ def test_dialog_pick_atom_logic(qapp):
     dlg = FunctionalGroupToolbox(mock_context)
 
     # Mock vtk cell picker to return atom0 position
+    dlg.terminal_hydrogen_checkbox.setChecked(False)
     mock_picker = MagicMock()
     mock_picker.GetActor.return_value = atom_actor
     mock_picker.GetPickPosition.return_value = (atom0_pos.x, atom0_pos.y, atom0_pos.z)
@@ -551,15 +558,18 @@ def test_initialize_and_lifecycle_handlers(qapp):
 
     # Save state
     saved = handlers["save"]()
-    assert "settings" in saved
+    assert saved == {"dialog_opened": True}
 
     # Load state
+    settings_module.save_settings({
+        "last_category": "Halogen", "last_group": "Fluoro", "relax": False,
+    })
     handlers["load"](
         {
             "settings": {
-                "last_category": "Halogen",
-                "last_group": "Fluoro",
-                "relax": False,
+                "last_category": "All",
+                "last_group": "Methyl",
+                "relax": True,
             }
         }
     )
@@ -571,8 +581,8 @@ def test_initialize_and_lifecycle_handlers(qapp):
     dlg.close()
     dlg.setVisible(False)
     handlers["reset"]()
-    assert module._current_settings["last_category"] == "All"
-    assert module._current_settings["last_group"] == "Methyl"
+    assert module._current_settings["last_category"] == "Halogen"
+    assert module._current_settings["last_group"] == "Fluoro"
 
 
 def test_dialog_position_near_parent(qapp):
@@ -793,6 +803,7 @@ def test_pick_ignores_empty_space_and_accepts_large_spheres(qapp):
     center = np.array(mol.GetConformer().GetAtomPosition(0))
     picker = MagicMock()
     dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    dlg.terminal_hydrogen_checkbox.setChecked(False)
 
     with patch.dict(sys.modules, {"vtk": mock_vtk}):
         # Nothing hit: the pick position is meaningless and must not select anything
@@ -853,27 +864,289 @@ def test_settings_survive_dialog_close_and_reject_bad_types(qapp):
         dlg.category_combo.setCurrentText("Halogen")
         dlg.group_combo.setCurrentText("Bromo")
         dlg.relax_checkbox.setChecked(False)
+        dlg.terminal_hydrogen_checkbox.setChecked(False)
+        dlg.click_mode_combo.setCurrentIndex(1)
         dlg.close()
 
-        saved = handlers["save"]()["settings"]
+        assert handlers["save"]() == {"dialog_opened": True}
+        saved = settings_module.load_settings()
         assert saved == {
             "last_category": "Halogen",
             "last_group": "Bromo",
             "relax": False,
+            "replace_terminal_hydrogen": False,
+            "click_to_replace": True,
         }
 
-        handlers["load"]({"settings": {"relax": "yes", "last_group": 3, "junk": 1}})
+        handlers["load"]({"settings": {"relax": "yes", "last_group": 3, "junk": 1,
+                                      "replace_terminal_hydrogen": "yes",
+                                      "click_to_replace": "no"}})
         assert module._current_settings["relax"] is False
         assert module._current_settings["last_group"] == "Bromo"
         assert "junk" not in module._current_settings
 
         # Reopening restores the remembered choices
+        module._current_settings.clear()
+        module.initialize(mock_context)  # Simulate a fresh plugin initialization.
         module._open_replacer()
         dlg = windows[module.WINDOW_ID]
         assert dlg.group_combo.currentText() == "Bromo"
         assert not dlg.relax_checkbox.isChecked()
+        assert not dlg.terminal_hydrogen_checkbox.isChecked()
+        assert dlg.click_mode_combo.currentIndex() == 1
         dlg.close()
     finally:
         module._context, module._dialog_opened = orig_context, orig_opened
         module._current_settings.clear()
         module._current_settings.update(orig_settings)
+
+
+def test_terminal_hydrogen_selection_and_replacement(qapp):
+    mol = _embedded("CC")
+    picker = MagicMock()
+    picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(0))
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    assert dlg.terminal_hydrogen_checkbox.isChecked()
+    dlg.relax_checkbox.setChecked(False)
+    dlg.group_combo.setCurrentText("Hydroxyl")
+    h_idx = min(a.GetIdx() for a in mol.GetAtomWithIdx(0).GetNeighbors()
+                if a.GetAtomicNum() == 1)
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
+        dlg._pick_atom(1, 1, widget)
+        assert dlg.selected_atom_idx == h_idx
+        assert dlg.selection_label.text() == f"Selected atom: H{h_idx} (index {h_idx})"
+        dlg._pick_atom(1, 1, widget)
+        assert dlg.selected_atom_idx is None
+        picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(h_idx))
+        dlg._pick_atom(1, 1, widget)
+        assert dlg.selected_atom_idx == h_idx
+    dlg.replace_atom()
+    result = dlg.context.current_mol
+    assert Chem.MolToSmiles(Chem.RemoveHs(result)) == Chem.CanonSmiles("CCO")
+    assert np.allclose(result.GetConformer().GetPositions()[:2],
+                       mol.GetConformer().GetPositions()[:2])
+    assert dlg.selected_atom_idx is None
+    assert not dlg.selection_labels
+    dlg.context.push_undo_checkpoint.assert_called_once()
+    dlg.close()
+
+
+def test_terminal_hydrogen_option_rejects_missing_h_and_clears_selection(qapp):
+    mol = _embedded("CC(F)(F)F")
+    picker = MagicMock()
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    dlg.selected_atom_idx = 0
+    dlg.update_selection_display()
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
+        picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(1))
+        dlg._pick_atom(1, 1, widget)
+    assert dlg.selected_atom_idx is None
+    assert not dlg.selection_labels
+    assert dlg.context.current_mol is mol
+    assert "No terminal hydrogen" in dlg.context.show_status_message.call_args.args[0]
+    dlg.selected_atom_idx = 0
+    dlg.update_selection_display()
+    dlg.terminal_hydrogen_checkbox.setChecked(False)
+    assert dlg.selected_atom_idx is None
+    assert dlg._replacement_target(mol, 1) == 1
+    dlg.apply_settings({"replace_terminal_hydrogen": "yes"})
+    assert not dlg.terminal_hydrogen_checkbox.isChecked()
+    assert dlg.get_settings()["replace_terminal_hydrogen"] is False
+    dlg.close()
+
+
+@pytest.mark.parametrize("immediate", [False, True])
+@pytest.mark.parametrize("terminal_hydrogen", [False, True])
+def test_both_click_modes_support_both_replacement_targets(qapp, immediate, terminal_hydrogen):
+    mol = _embedded("CC")
+    picker = MagicMock()
+    picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(0))
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    assert dlg.click_mode_combo.currentIndex() == 0
+    dlg.terminal_hydrogen_checkbox.setChecked(terminal_hydrogen)
+    dlg.click_mode_combo.setCurrentIndex(int(immediate))
+    dlg.relax_checkbox.setChecked(False)
+    dlg.group_combo.setCurrentText("Hydroxyl")
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
+        dlg._pick_atom(1, 1, widget)
+    if not immediate:
+        assert dlg.context.current_mol is mol
+        assert dlg.selected_atom_idx is not None
+        assert not dlg.context.push_undo_checkpoint.called
+        dlg.replace_button.click()
+    result = dlg.context.current_mol
+    expected = "CCO" if terminal_hydrogen else "CO"
+    assert Chem.MolToSmiles(Chem.RemoveHs(result)) == Chem.CanonSmiles(expected)
+    dlg.context.push_undo_checkpoint.assert_called_once()
+    assert dlg.selected_atom_idx is None
+    assert not dlg.selection_labels
+    dlg.close()
+
+
+def test_switching_click_modes_clears_labels_without_replacing(qapp):
+    mol = _embedded("CC")
+    dlg, _vtk, _widget = _dialog_with_picker(mol, MagicMock())
+    dlg.selected_atom_idx = 2
+    dlg.update_selection_display()
+    assert dlg.selection_labels
+    dlg.click_mode_combo.setCurrentIndex(1)
+    assert dlg.selected_atom_idx is None
+    assert not dlg.selection_labels
+    assert "immediately" in dlg.instruction_label.text()
+    assert dlg.context.current_mol is mol
+    assert not dlg.context.push_undo_checkpoint.called
+    dlg.click_mode_combo.setCurrentIndex(0)
+    assert "Replace Selected Atom" in dlg.instruction_label.text()
+    dlg.close()
+
+
+def test_immediate_mode_retries_failed_pick_instead_of_deselecting(qapp):
+    mol = _embedded("CC")
+    picker = MagicMock()
+    picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(2))
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    dlg.click_mode_combo.setCurrentIndex(1)
+    with patch.dict(sys.modules, {"vtk": mock_vtk}), patch(
+        "functional_group_replacer_3d.dialog.replace_atom_with_group",
+        side_effect=ValueError("test failure"),
+    ) as replace, patch("PyQt6.QtWidgets.QMessageBox.critical"):
+        dlg._pick_atom(1, 1, widget)
+        dlg._pick_atom(1, 1, widget)
+    assert replace.call_count == 2
+    assert dlg.context.current_mol is mol
+    assert not dlg.context.push_undo_checkpoint.called
+    dlg.close()
+
+
+@pytest.mark.parametrize("content", [None, "{broken", "[]", '{"relax": "yes", "last_group": "Bogus", "last_category": "Bogus", "click_to_replace": 1, "junk": true}'])
+def test_settings_file_falls_back_to_valid_defaults(content):
+    if content is not None:
+        settings_module.SETTINGS_FILE.write_text(content, encoding="utf-8")
+    assert settings_module.load_settings() == settings_module.DEFAULT_SETTINGS
+
+
+def test_settings_file_round_trip_and_failed_write_preserves_previous_file():
+    preferences = dict(settings_module.DEFAULT_SETTINGS,
+                       last_group="Bromo", last_category="Halogen",
+                       click_to_replace=True, replace_terminal_hydrogen=False)
+    settings_module.save_settings(preferences)
+    assert settings_module.load_settings() == preferences
+    before = settings_module.SETTINGS_FILE.read_bytes()
+    with patch.object(settings_module.os, "replace", side_effect=OSError("read-only")):
+        settings_module.save_settings(settings_module.DEFAULT_SETTINGS)
+    assert settings_module.SETTINGS_FILE.read_bytes() == before
+    assert list(settings_module.SETTINGS_FILE.parent.glob("*.tmp")) == []
+
+
+def test_document_load_does_not_rewrite_global_preferences(qapp):
+    context = MagicMock()
+    context.get_main_window.return_value = None
+    windows = {}
+    context.register_window.side_effect = lambda k, w: windows.__setitem__(k, w)
+    context.get_window.side_effect = windows.get
+    original_context = module._context
+    original_opened = module._dialog_opened
+    original_settings = dict(module._current_settings)
+    try:
+        module.initialize(context)
+        module._open_replacer()
+        dlg = windows[module.WINDOW_ID]
+        preferences = dict(settings_module.DEFAULT_SETTINGS,
+                           last_category="Halogen", last_group="Bromo",
+                           click_to_replace=True, replace_terminal_hydrogen=False)
+        settings_module.save_settings(preferences)
+        before = settings_module.SETTINGS_FILE.read_bytes()
+        module._load_state({"settings": dict(settings_module.DEFAULT_SETTINGS)})
+        assert dlg.get_settings() == preferences
+        assert settings_module.SETTINGS_FILE.read_bytes() == before
+        module._reset_state()
+        assert dlg.get_settings() == preferences
+        dlg.close()
+        module._reset_state()
+        assert module._current_settings == preferences
+    finally:
+        module._context = original_context
+        module._dialog_opened = original_opened
+        module._current_settings.clear()
+        module._current_settings.update(original_settings)
+
+
+@pytest.mark.parametrize("immediate", [False, True])
+def test_hydrogen_mode_does_not_replace_atom_without_hydrogen(qapp, immediate):
+    mol = _embedded("FC(F)(F)F")
+    picker = MagicMock()
+    picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(1))
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    dlg.click_mode_combo.setCurrentIndex(int(immediate))
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
+        dlg._pick_atom(1, 1, widget)
+    assert dlg.context.current_mol is mol
+    assert dlg.selected_atom_idx is None
+    assert not dlg.context.push_undo_checkpoint.called
+    assert "No terminal hydrogen" in dlg.context.show_status_message.call_args.args[0]
+    dlg.close()
+
+
+def test_immediate_mode_repeated_clicks_use_updated_molecule(qapp):
+    mol = _embedded("C")
+    picker = MagicMock()
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    dlg.click_mode_combo.setCurrentIndex(1)
+    dlg.relax_checkbox.setChecked(False)
+    dlg.group_combo.setCurrentText("Fluoro")
+    picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(0))
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
+        dlg._pick_atom(1, 1, widget)
+        first = dlg.context.current_mol
+        assert Chem.MolToSmiles(Chem.RemoveHs(first)) == Chem.CanonSmiles("CF")
+        dlg._pick_atom(1, 1, widget)
+    assert Chem.MolToSmiles(Chem.RemoveHs(dlg.context.current_mol)) == Chem.CanonSmiles("FCF")
+    assert dlg.context.push_undo_checkpoint.call_count == 2
+    assert dlg.selected_atom_idx is None
+    assert not dlg.selection_labels
+    dlg.close()
+
+
+def test_immediate_mode_without_group_does_not_edit(qapp):
+    mol = _embedded("CC")
+    picker = MagicMock()
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    dlg.click_mode_combo.setCurrentIndex(1)
+    dlg.search_input.setText("no matching group name")
+    picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(2))
+    with patch.dict(sys.modules, {"vtk": mock_vtk}), patch(
+        "PyQt6.QtWidgets.QMessageBox.warning"
+    ) as warning:
+        dlg._pick_atom(1, 1, widget)
+    warning.assert_called_once()
+    assert dlg.context.current_mol is mol
+    assert not dlg.context.push_undo_checkpoint.called
+    assert not dlg.replace_button.isEnabled()
+    dlg.close()
+
+
+def test_unreadable_settings_file_logs_and_uses_defaults(caplog):
+    with patch.object(settings_module.Path, "open", side_effect=PermissionError("denied")):
+        assert settings_module.load_settings() == settings_module.DEFAULT_SETTINGS
+    assert "Could not read" in caplog.text
+
+
+def test_settings_save_failure_does_not_break_dialog(qapp, caplog):
+    context = MagicMock()
+    context.get_main_window.return_value = None
+    context.get_window.return_value = None
+    original_context = module._context
+    try:
+        module.initialize(context)
+        module._open_replacer()
+        dlg = context.register_window.call_args.args[1]
+        with patch.object(settings_module.tempfile, "NamedTemporaryFile",
+                          side_effect=PermissionError("denied")):
+            dlg.click_mode_combo.setCurrentIndex(1)
+            dlg.terminal_hydrogen_checkbox.setChecked(False)
+        assert module._current_settings["click_to_replace"] is True
+        assert module._current_settings["replace_terminal_hydrogen"] is False
+        assert "Could not write" in caplog.text
+        dlg.close()
+    finally:
+        module._context = original_context
