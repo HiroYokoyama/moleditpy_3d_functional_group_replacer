@@ -42,10 +42,13 @@ jobs:
 
       - name: Clone main MoleditPy application (for API integration testing)
         run: |
-          git clone --depth 1 https://github.com/HiroYokoyama/python_molecular_editor.git ../python_molecular_editor || true
+          git clone --depth 1 https://github.com/HiroYokoyama/python_molecular_editor.git ../python_molecular_editor
 
       - name: Build package
         run: python -m build
 
       - name: Run test suite
         run: python -m pytest tests/ -v
+
+      - name: Check plugin API compatibility against MoleditPy
+        run: python -m pytest tests/test_api.py -v
