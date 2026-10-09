@@ -27,6 +27,8 @@ An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](htt
 - **Physically Realistic 3D Conformation**: Calculates the original bond vector from neighbor to target atom, aligns the attachment bond along this vector, and performs constrained **MMFF94 / UFF force field minimization** holding all parent atoms completely rigid.
 - **Full Undo/Redo & State Persistence**: Pushes state checkpoints to MoleditPy's undo stack and preserves your last-used category, group, click mode, terminal hydrogen, and relaxation options between sessions.
 
+Preferences are saved automatically in `functional_group_replacer_3d/settings.json`, following Section 2.7 of the MoleditPy V4 plugin development manual. The Plugin Installer preserves this file during updates. Opening a project or choosing File > New keeps these user preferences; project files do not store or override them. A missing or invalid settings file uses the defaults.
+
 ---
 
 ## Installation
@@ -82,6 +84,7 @@ moleditpy_3d_functional_group_replacer/
 │   ├── chemistry.py               # Core replacement algorithm & constrained 3D relaxation
 │   ├── dialog.py                  # PyQt6 UI, 3D pick event filter & PyVista label management
 │   ├── groups.py                  # 50+ SMILES definitions and category index
+│   ├── settings.py                # Validated, atomic companion JSON preferences
 │   └── functional_group_replacer_3d.py # Backward-compatible re-export module
 ├── tests/
 │   ├── test_functional_group_replacer_3d.py # Unit and GUI test suite

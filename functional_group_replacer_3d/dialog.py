@@ -22,18 +22,11 @@ from PyQt6.QtWidgets import (
 
 from .chemistry import replace_atom_with_group
 from .groups import GROUP_CATEGORIES, GROUPS, get_group_smiles, search_groups
+from .settings import DEFAULT_SETTINGS
 
 logger = logging.getLogger(__name__)
 
 WINDOW_ID = "functional_group_replacer"
-
-DEFAULT_SETTINGS: dict[str, Any] = {
-    "last_category": "All",
-    "last_group": "Methyl",
-    "relax": True,
-    "replace_terminal_hydrogen": True,
-    "click_to_replace": False,
-}
 
 # Squared screen distance (px^2) below which a press/release pair is a click, not a drag.
 _CLICK_MOVE_TOLERANCE_SQ = 25
@@ -266,7 +259,7 @@ class FunctionalGroupReplacer(QWidget):
         self._emit_settings()
 
     def get_settings(self) -> dict[str, Any]:
-        """Return the user-facing choices worth persisting with the document."""
+        """Return user preferences for the companion settings file."""
         return {
             "last_category": self.category_combo.currentText(),
             "last_group": self.group_combo.currentText(),

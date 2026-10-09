@@ -21,6 +21,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import functional_group_replacer_3d as module
+from functional_group_replacer_3d import settings as settings_module
 from functional_group_replacer_3d.chemistry import (
     relax_molecule_with_fixed_atoms,
     replace_atom_with_group,
@@ -46,6 +47,11 @@ def qapp():
     if app is None:
         app = QApplication(["--platform", "offscreen"])
     return app
+
+
+@pytest.fixture(autouse=True)
+def isolated_settings_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings_module, "SETTINGS_FILE", tmp_path / "settings.json")
 
 
 def test_package_metadata_and_public_exports():
@@ -552,15 +558,18 @@ def test_initialize_and_lifecycle_handlers(qapp):
 
     # Save state
     saved = handlers["save"]()
-    assert "settings" in saved
+    assert saved == {"dialog_opened": True}
 
     # Load state
+    settings_module.save_settings({
+        "last_category": "Halogen", "last_group": "Fluoro", "relax": False,
+    })
     handlers["load"](
         {
             "settings": {
-                "last_category": "Halogen",
-                "last_group": "Fluoro",
-                "relax": False,
+                "last_category": "All",
+                "last_group": "Methyl",
+                "relax": True,
             }
         }
     )
@@ -572,8 +581,8 @@ def test_initialize_and_lifecycle_handlers(qapp):
     dlg.close()
     dlg.setVisible(False)
     handlers["reset"]()
-    assert module._current_settings["last_category"] == "All"
-    assert module._current_settings["last_group"] == "Methyl"
+    assert module._current_settings["last_category"] == "Halogen"
+    assert module._current_settings["last_group"] == "Fluoro"
 
 
 def test_dialog_position_near_parent(qapp):
@@ -859,7 +868,8 @@ def test_settings_survive_dialog_close_and_reject_bad_types(qapp):
         dlg.click_mode_combo.setCurrentIndex(1)
         dlg.close()
 
-        saved = handlers["save"]()["settings"]
+        assert handlers["save"]() == {"dialog_opened": True}
+        saved = settings_module.load_settings()
         assert saved == {
             "last_category": "Halogen",
             "last_group": "Bromo",
@@ -876,6 +886,8 @@ def test_settings_survive_dialog_close_and_reject_bad_types(qapp):
         assert "junk" not in module._current_settings
 
         # Reopening restores the remembered choices
+        module._current_settings.clear()
+        module.initialize(mock_context)  # Simulate a fresh plugin initialization.
         module._open_replacer()
         dlg = windows[module.WINDOW_ID]
         assert dlg.group_combo.currentText() == "Bromo"
@@ -1004,3 +1016,56 @@ def test_immediate_mode_retries_failed_pick_instead_of_deselecting(qapp):
     assert dlg.context.current_mol is mol
     assert not dlg.context.push_undo_checkpoint.called
     dlg.close()
+
+
+@pytest.mark.parametrize("content", [None, "{broken", "[]", '{"relax": "yes", "last_group": "Bogus", "last_category": "Bogus", "click_to_replace": 1, "junk": true}'])
+def test_settings_file_falls_back_to_valid_defaults(content):
+    if content is not None:
+        settings_module.SETTINGS_FILE.write_text(content, encoding="utf-8")
+    assert settings_module.load_settings() == settings_module.DEFAULT_SETTINGS
+
+
+def test_settings_file_round_trip_and_failed_write_preserves_previous_file():
+    preferences = dict(settings_module.DEFAULT_SETTINGS,
+                       last_group="Bromo", last_category="Halogen",
+                       click_to_replace=True, replace_terminal_hydrogen=False)
+    settings_module.save_settings(preferences)
+    assert settings_module.load_settings() == preferences
+    before = settings_module.SETTINGS_FILE.read_bytes()
+    with patch.object(settings_module.os, "replace", side_effect=OSError("read-only")):
+        settings_module.save_settings(settings_module.DEFAULT_SETTINGS)
+    assert settings_module.SETTINGS_FILE.read_bytes() == before
+    assert list(settings_module.SETTINGS_FILE.parent.glob("*.tmp")) == []
+
+
+def test_document_load_does_not_rewrite_global_preferences(qapp):
+    context = MagicMock()
+    context.get_main_window.return_value = None
+    windows = {}
+    context.register_window.side_effect = lambda k, w: windows.__setitem__(k, w)
+    context.get_window.side_effect = windows.get
+    original_context = module._context
+    original_opened = module._dialog_opened
+    original_settings = dict(module._current_settings)
+    try:
+        module.initialize(context)
+        module._open_replacer()
+        dlg = windows[module.WINDOW_ID]
+        preferences = dict(settings_module.DEFAULT_SETTINGS,
+                           last_category="Halogen", last_group="Bromo",
+                           click_to_replace=True, replace_terminal_hydrogen=False)
+        settings_module.save_settings(preferences)
+        before = settings_module.SETTINGS_FILE.read_bytes()
+        module._load_state({"settings": dict(settings_module.DEFAULT_SETTINGS)})
+        assert dlg.get_settings() == preferences
+        assert settings_module.SETTINGS_FILE.read_bytes() == before
+        module._reset_state()
+        assert dlg.get_settings() == preferences
+        dlg.close()
+        module._reset_state()
+        assert module._current_settings == preferences
+    finally:
+        module._context = original_context
+        module._dialog_opened = original_opened
+        module._current_settings.clear()
+        module._current_settings.update(original_settings)
