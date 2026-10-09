@@ -855,6 +855,8 @@ def test_settings_survive_dialog_close_and_reject_bad_types(qapp):
         dlg.category_combo.setCurrentText("Halogen")
         dlg.group_combo.setCurrentText("Bromo")
         dlg.relax_checkbox.setChecked(False)
+        dlg.terminal_hydrogen_checkbox.setChecked(False)
+        dlg.click_mode_combo.setCurrentIndex(1)
         dlg.close()
 
         saved = handlers["save"]()["settings"]
@@ -862,10 +864,13 @@ def test_settings_survive_dialog_close_and_reject_bad_types(qapp):
             "last_category": "Halogen",
             "last_group": "Bromo",
             "relax": False,
-            "replace_terminal_hydrogen": True,
+            "replace_terminal_hydrogen": False,
+            "click_to_replace": True,
         }
 
-        handlers["load"]({"settings": {"relax": "yes", "last_group": 3, "junk": 1}})
+        handlers["load"]({"settings": {"relax": "yes", "last_group": 3, "junk": 1,
+                                      "replace_terminal_hydrogen": "yes",
+                                      "click_to_replace": "no"}})
         assert module._current_settings["relax"] is False
         assert module._current_settings["last_group"] == "Bromo"
         assert "junk" not in module._current_settings
@@ -875,6 +880,8 @@ def test_settings_survive_dialog_close_and_reject_bad_types(qapp):
         dlg = windows[module.WINDOW_ID]
         assert dlg.group_combo.currentText() == "Bromo"
         assert not dlg.relax_checkbox.isChecked()
+        assert not dlg.terminal_hydrogen_checkbox.isChecked()
+        assert dlg.click_mode_combo.currentIndex() == 1
         dlg.close()
     finally:
         module._context, module._dialog_opened = orig_context, orig_opened
@@ -933,4 +940,67 @@ def test_terminal_hydrogen_option_rejects_missing_h_and_clears_selection(qapp):
     dlg.apply_settings({"replace_terminal_hydrogen": "yes"})
     assert not dlg.terminal_hydrogen_checkbox.isChecked()
     assert dlg.get_settings()["replace_terminal_hydrogen"] is False
+    dlg.close()
+
+
+@pytest.mark.parametrize("immediate", [False, True])
+@pytest.mark.parametrize("terminal_hydrogen", [False, True])
+def test_both_click_modes_support_both_replacement_targets(qapp, immediate, terminal_hydrogen):
+    mol = _embedded("CC")
+    picker = MagicMock()
+    picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(0))
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    assert dlg.click_mode_combo.currentIndex() == 0
+    dlg.terminal_hydrogen_checkbox.setChecked(terminal_hydrogen)
+    dlg.click_mode_combo.setCurrentIndex(int(immediate))
+    dlg.relax_checkbox.setChecked(False)
+    dlg.group_combo.setCurrentText("Hydroxyl")
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
+        dlg._pick_atom(1, 1, widget)
+    if not immediate:
+        assert dlg.context.current_mol is mol
+        assert dlg.selected_atom_idx is not None
+        assert not dlg.context.push_undo_checkpoint.called
+        dlg.replace_button.click()
+    result = dlg.context.current_mol
+    expected = "CCO" if terminal_hydrogen else "CO"
+    assert Chem.MolToSmiles(Chem.RemoveHs(result)) == Chem.CanonSmiles(expected)
+    dlg.context.push_undo_checkpoint.assert_called_once()
+    assert dlg.selected_atom_idx is None
+    assert not dlg.selection_labels
+    dlg.close()
+
+
+def test_switching_click_modes_clears_labels_without_replacing(qapp):
+    mol = _embedded("CC")
+    dlg, _vtk, _widget = _dialog_with_picker(mol, MagicMock())
+    dlg.selected_atom_idx = 2
+    dlg.update_selection_display()
+    assert dlg.selection_labels
+    dlg.click_mode_combo.setCurrentIndex(1)
+    assert dlg.selected_atom_idx is None
+    assert not dlg.selection_labels
+    assert "immediately" in dlg.instruction_label.text()
+    assert dlg.context.current_mol is mol
+    assert not dlg.context.push_undo_checkpoint.called
+    dlg.click_mode_combo.setCurrentIndex(0)
+    assert "Replace Selected Atom" in dlg.instruction_label.text()
+    dlg.close()
+
+
+def test_immediate_mode_retries_failed_pick_instead_of_deselecting(qapp):
+    mol = _embedded("CC")
+    picker = MagicMock()
+    picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(2))
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    dlg.click_mode_combo.setCurrentIndex(1)
+    with patch.dict(sys.modules, {"vtk": mock_vtk}), patch(
+        "functional_group_replacer_3d.dialog.replace_atom_with_group",
+        side_effect=ValueError("test failure"),
+    ) as replace, patch("PyQt6.QtWidgets.QMessageBox.critical"):
+        dlg._pick_atom(1, 1, widget)
+        dlg._pick_atom(1, 1, widget)
+    assert replace.call_count == 2
+    assert dlg.context.current_mol is mol
+    assert not dlg.context.push_undo_checkpoint.called
     dlg.close()
