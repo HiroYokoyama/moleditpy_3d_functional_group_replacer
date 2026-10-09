@@ -22,7 +22,7 @@ from .groups import (
 from .settings import load_settings, save_settings
 
 PLUGIN_NAME = "3D Functional Group Replacer"
-PLUGIN_VERSION = "0.9.0"
+PLUGIN_VERSION = "1.0.0"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=4.0.0, <5.0.0"
 PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
