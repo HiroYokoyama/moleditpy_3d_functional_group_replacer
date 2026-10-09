@@ -424,6 +424,7 @@ def test_dialog_pick_atom_logic(qapp):
     dlg = FunctionalGroupToolbox(mock_context)
 
     # Mock vtk cell picker to return atom0 position
+    dlg.terminal_hydrogen_checkbox.setChecked(False)
     mock_picker = MagicMock()
     mock_picker.GetActor.return_value = atom_actor
     mock_picker.GetPickPosition.return_value = (atom0_pos.x, atom0_pos.y, atom0_pos.z)
@@ -793,6 +794,7 @@ def test_pick_ignores_empty_space_and_accepts_large_spheres(qapp):
     center = np.array(mol.GetConformer().GetAtomPosition(0))
     picker = MagicMock()
     dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    dlg.terminal_hydrogen_checkbox.setChecked(False)
 
     with patch.dict(sys.modules, {"vtk": mock_vtk}):
         # Nothing hit: the pick position is meaningless and must not select anything
@@ -860,6 +862,7 @@ def test_settings_survive_dialog_close_and_reject_bad_types(qapp):
             "last_category": "Halogen",
             "last_group": "Bromo",
             "relax": False,
+            "replace_terminal_hydrogen": True,
         }
 
         handlers["load"]({"settings": {"relax": "yes", "last_group": 3, "junk": 1}})
@@ -877,3 +880,57 @@ def test_settings_survive_dialog_close_and_reject_bad_types(qapp):
         module._context, module._dialog_opened = orig_context, orig_opened
         module._current_settings.clear()
         module._current_settings.update(orig_settings)
+
+
+def test_terminal_hydrogen_selection_and_replacement(qapp):
+    mol = _embedded("CC")
+    picker = MagicMock()
+    picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(0))
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    assert dlg.terminal_hydrogen_checkbox.isChecked()
+    dlg.relax_checkbox.setChecked(False)
+    dlg.group_combo.setCurrentText("Hydroxyl")
+    h_idx = min(a.GetIdx() for a in mol.GetAtomWithIdx(0).GetNeighbors()
+                if a.GetAtomicNum() == 1)
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
+        dlg._pick_atom(1, 1, widget)
+        assert dlg.selected_atom_idx == h_idx
+        assert dlg.selection_label.text() == f"Selected atom: H{h_idx} (index {h_idx})"
+        dlg._pick_atom(1, 1, widget)
+        assert dlg.selected_atom_idx is None
+        picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(h_idx))
+        dlg._pick_atom(1, 1, widget)
+        assert dlg.selected_atom_idx == h_idx
+    dlg.replace_atom()
+    result = dlg.context.current_mol
+    assert Chem.MolToSmiles(Chem.RemoveHs(result)) == Chem.CanonSmiles("CCO")
+    assert np.allclose(result.GetConformer().GetPositions()[:2],
+                       mol.GetConformer().GetPositions()[:2])
+    assert dlg.selected_atom_idx is None
+    assert not dlg.selection_labels
+    dlg.context.push_undo_checkpoint.assert_called_once()
+    dlg.close()
+
+
+def test_terminal_hydrogen_option_rejects_missing_h_and_clears_selection(qapp):
+    mol = _embedded("CC(F)(F)F")
+    picker = MagicMock()
+    dlg, mock_vtk, widget = _dialog_with_picker(mol, picker)
+    dlg.selected_atom_idx = 0
+    dlg.update_selection_display()
+    with patch.dict(sys.modules, {"vtk": mock_vtk}):
+        picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(1))
+        dlg._pick_atom(1, 1, widget)
+    assert dlg.selected_atom_idx is None
+    assert not dlg.selection_labels
+    assert dlg.context.current_mol is mol
+    assert "No terminal hydrogen" in dlg.context.show_status_message.call_args.args[0]
+    dlg.selected_atom_idx = 0
+    dlg.update_selection_display()
+    dlg.terminal_hydrogen_checkbox.setChecked(False)
+    assert dlg.selected_atom_idx is None
+    assert dlg._replacement_target(mol, 1) == 1
+    dlg.apply_settings({"replace_terminal_hydrogen": "yes"})
+    assert not dlg.terminal_hydrogen_checkbox.isChecked()
+    assert dlg.get_settings()["replace_terminal_hydrogen"] is False
+    dlg.close()

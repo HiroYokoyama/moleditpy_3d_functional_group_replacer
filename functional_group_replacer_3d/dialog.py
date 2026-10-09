@@ -31,6 +31,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "last_category": "All",
     "last_group": "Methyl",
     "relax": True,
+    "replace_terminal_hydrogen": True,
 }
 
 # Squared screen distance (px^2) below which a press/release pair is a click, not a drag.
@@ -152,6 +153,14 @@ class FunctionalGroupReplacer(QWidget):
         self.preview_label.setStyleSheet("color: #666; font-size: 11px;")
         layout.addWidget(self.preview_label)
 
+        self.terminal_hydrogen_checkbox = QCheckBox("Replace terminal hydrogen")
+        self.terminal_hydrogen_checkbox.setChecked(True)
+        self.terminal_hydrogen_checkbox.setToolTip(
+            "Click a hydrogen directly, or a heavy atom to target its first attached "
+            "terminal hydrogen (by atom index). Uncheck to replace the clicked atom itself."
+        )
+        layout.addWidget(self.terminal_hydrogen_checkbox)
+
         # 3D Relaxation option
         self.relax_checkbox = QCheckBox(
             "Relax group 3D geometry (MMFF/UFF force field)"
@@ -187,6 +196,29 @@ class FunctionalGroupReplacer(QWidget):
         self.search_input.textChanged.connect(self._populate_groups)
         self.group_combo.currentTextChanged.connect(self._on_group_changed)
         self.relax_checkbox.toggled.connect(self._emit_settings)
+        self.terminal_hydrogen_checkbox.toggled.connect(self._on_target_option_changed)
+
+    def _on_target_option_changed(self, *_args: Any) -> None:
+        self.clear_selection()
+        self._emit_settings()
+
+    def _replacement_target(self, mol: Any, atom_idx: int) -> int:
+        """Resolve a click to an explicit terminal H, or the atom itself."""
+        if not self.terminal_hydrogen_checkbox.isChecked():
+            return atom_idx
+        atom = mol.GetAtomWithIdx(atom_idx)
+        candidates = [atom] if atom.GetAtomicNum() == 1 else atom.GetNeighbors()
+        hydrogens = [
+            a.GetIdx() for a in candidates
+            if a.GetAtomicNum() == 1 and a.GetDegree() == 1
+            and a.GetNeighbors()[0].GetAtomicNum() > 1
+        ]
+        if not hydrogens:
+            raise ValueError(
+                "No terminal hydrogen on this atom. Click an explicit hydrogen or "
+                "uncheck 'Replace terminal hydrogen' to replace the atom itself."
+            )
+        return min(hydrogens)
 
     def _populate_groups(self, *_args: Any) -> None:
         """Populate the group combo box based on current category and search text."""
@@ -218,6 +250,7 @@ class FunctionalGroupReplacer(QWidget):
             "last_category": self.category_combo.currentText(),
             "last_group": self.group_combo.currentText(),
             "relax": self.relax_checkbox.isChecked(),
+            "replace_terminal_hydrogen": self.terminal_hydrogen_checkbox.isChecked(),
         }
 
     def apply_settings(self, settings: dict[str, Any]) -> None:
@@ -238,6 +271,9 @@ class FunctionalGroupReplacer(QWidget):
         relax = settings.get("relax")
         if isinstance(relax, bool):
             self.relax_checkbox.setChecked(relax)
+        terminal_hydrogen = settings.get("replace_terminal_hydrogen")
+        if isinstance(terminal_hydrogen, bool):
+            self.terminal_hydrogen_checkbox.setChecked(terminal_hydrogen)
 
     def _emit_settings(self, *_args: Any) -> None:
         self.settings_changed.emit(self.get_settings())
@@ -302,6 +338,13 @@ class FunctionalGroupReplacer(QWidget):
         dist_sq = np.sum((coords - np.asarray(picker.GetPickPosition())) ** 2, axis=1)
         atom_idx = int(np.argmin(dist_sq))
         if dist_sq[atom_idx] > _MAX_PICK_DISTANCE**2:
+            return
+
+        try:
+            atom_idx = self._replacement_target(mol, atom_idx)
+        except ValueError as exc:
+            self.clear_selection()
+            self.context.show_status_message(str(exc))
             return
 
         # Toggle selection if the same atom is clicked
@@ -439,6 +482,7 @@ class FunctionalGroupReplacer(QWidget):
             return
 
         try:
+            target = self._replacement_target(mol, target)
             new_mol = replace_atom_with_group(
                 mol, target, group_smi, relax=self.relax_checkbox.isChecked()
             )
