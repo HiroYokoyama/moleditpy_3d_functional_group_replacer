@@ -1,4 +1,4 @@
-"""PyQt6 interactive dialog for 3D Functional Group Toolbox."""
+"""PySide6 interactive dialog for 3D Functional Group Toolbox."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import logging
 from typing import Any
 
 import numpy as np
-from PyQt6.QtCore import QEvent, QObject, Qt, pyqtSignal
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QEvent, QObject, Qt, Signal
+from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
@@ -71,7 +71,7 @@ class FunctionalGroupReplacer(QWidget):
     """Interactive functional group replacement tool with real-time 3D picking and labels."""
 
     # Emitted with the current settings whenever the user changes one.
-    settings_changed = pyqtSignal(dict)
+    settings_changed = Signal(dict)
 
     def __init__(self, context: Any):
         parent = (

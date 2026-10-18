@@ -82,7 +82,7 @@ moleditpy_3d_functional_group_replacer/
 ├── functional_group_replacer_3d/
 │   ├── __init__.py                # Package metadata, lifecycle, and menu registration
 │   ├── chemistry.py               # Core replacement algorithm & constrained 3D relaxation
-│   ├── dialog.py                  # PyQt6 UI, 3D pick event filter & PyVista label management
+│   ├── dialog.py                  # PySide6 UI, 3D pick event filter & PyVista label management
 │   ├── groups.py                  # 50+ SMILES definitions and category index
 │   ├── settings.py                # Validated, atomic companion JSON preferences
 │   └── functional_group_replacer_3d.py # Backward-compatible re-export module
