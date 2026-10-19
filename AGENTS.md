@@ -9,7 +9,7 @@ This repository is a MoleditPy plugin for interactive 3D functional group replac
 Install dependencies in your Python environment:
 
 ```bash
-python -m pip install pytest pytest-cov numpy PyQt6 rdkit
+python -m pip install pytest pytest-cov numpy PySide6 rdkit
 ```
 
 ## Required Checks

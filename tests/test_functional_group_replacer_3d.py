@@ -11,9 +11,9 @@ import pytest
 
 Chem = pytest.importorskip("rdkit.Chem")
 AllChem = pytest.importorskip("rdkit.Chem.AllChem")
-from PyQt6.QtCore import QEvent, QPointF, Qt
-from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtCore import QEvent, QPointF, Qt
+from PySide6.QtGui import QMouseEvent
+from PySide6.QtWidgets import QApplication
 
 # Ensure repo root is in sys.path
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -61,7 +61,7 @@ def test_package_metadata_and_public_exports():
     assert module.PLUGIN_AUTHOR == "HiroYokoyama"
     assert module.PLUGIN_CATEGORY == "3D Editing"
     assert "rdkit" in module.PLUGIN_DEPENDENCIES
-    assert "PyQt6" in module.PLUGIN_DEPENDENCIES
+    assert "PySide6-Essentials" in module.PLUGIN_DEPENDENCIES
 
 
 def test_backward_compatible_module_import():
@@ -486,7 +486,7 @@ def test_dialog_replace_atom_action_and_fallbacks(qapp):
     dlg = FunctionalGroupToolbox(mock_context)
 
     # Attempt replacement without selection
-    with patch("PyQt6.QtWidgets.QMessageBox.warning") as mock_warn:
+    with patch("PySide6.QtWidgets.QMessageBox.warning") as mock_warn:
         dlg.replace_atom()
         assert mock_warn.called
 
@@ -508,7 +508,7 @@ def test_dialog_replace_atom_action_and_fallbacks(qapp):
             "functional_group_replacer_3d.dialog.replace_atom_with_group",
             side_effect=RuntimeError("Test error"),
         ),
-        patch("PyQt6.QtWidgets.QMessageBox.critical") as mock_crit,
+        patch("PySide6.QtWidgets.QMessageBox.critical") as mock_crit,
     ):
         dlg.replace_atom()
         assert mock_crit.called
@@ -587,7 +587,7 @@ def test_initialize_and_lifecycle_handlers(qapp):
 
 def test_dialog_position_near_parent(qapp):
     """Test dialog geometry placement relative to parent widget."""
-    from PyQt6.QtWidgets import QWidget
+    from PySide6.QtWidgets import QWidget
 
     parent = QWidget()
     parent.resize(800, 600)
@@ -678,8 +678,8 @@ def test_lifecycle_edge_cases():
 
 def test_is_widget_alive_with_real_widget(qapp):
     """Test _is_widget_alive with real Qt widget lifecycle."""
-    from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import QWidget
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QWidget
 
     w = QWidget()
     assert module._is_widget_alive(w) is True
@@ -829,7 +829,7 @@ def test_stale_selection_is_not_applied_to_new_molecule(qapp):
 
     # Host swaps in another molecule (undo, file load, ...)
     dlg.context.current_mol = _embedded("CCO")
-    with patch("PyQt6.QtWidgets.QMessageBox.warning") as mock_warn:
+    with patch("PySide6.QtWidgets.QMessageBox.warning") as mock_warn:
         dlg.replace_atom()
     assert mock_warn.called
     assert dlg.selected_atom_idx is None
@@ -1009,7 +1009,7 @@ def test_immediate_mode_retries_failed_pick_instead_of_deselecting(qapp):
     with patch.dict(sys.modules, {"vtk": mock_vtk}), patch(
         "functional_group_replacer_3d.dialog.replace_atom_with_group",
         side_effect=ValueError("test failure"),
-    ) as replace, patch("PyQt6.QtWidgets.QMessageBox.critical"):
+    ) as replace, patch("PySide6.QtWidgets.QMessageBox.critical"):
         dlg._pick_atom(1, 1, widget)
         dlg._pick_atom(1, 1, widget)
     assert replace.call_count == 2
@@ -1115,7 +1115,7 @@ def test_immediate_mode_without_group_does_not_edit(qapp):
     dlg.search_input.setText("no matching group name")
     picker.GetPickPosition.return_value = tuple(mol.GetConformer().GetAtomPosition(2))
     with patch.dict(sys.modules, {"vtk": mock_vtk}), patch(
-        "PyQt6.QtWidgets.QMessageBox.warning"
+        "PySide6.QtWidgets.QMessageBox.warning"
     ) as warning:
         dlg._pick_atom(1, 1, widget)
     warning.assert_called_once()

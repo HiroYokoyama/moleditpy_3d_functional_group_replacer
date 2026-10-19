@@ -2,9 +2,9 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22866924.svg)](https://doi.org/10.5281/zenodo.22866924)
 [![CI](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_replacer/actions/workflows/ci.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_3d_functional_group_replacer/actions/workflows/ci.yml)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-LGPLv3-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
-[![MoleditPy](https://img.shields.io/badge/MoleditPy->=4.0.0-3577F7)](https://github.com/HiroYokoyama/python_molecular_editor)
+[![MoleditPy](https://img.shields.io/badge/MoleditPy-5.x-3577F7)](https://github.com/HiroYokoyama/python_molecular_editor)
 
 An interactive, high-precision 3D molecular editing plugin for **[MoleditPy](https://github.com/HiroYokoyama/python_molecular_editor)**. Substitute any selected atom (such as a hydrogen or terminal group) with common functional groups in 3D space with automatic bond alignment and constrained force-field relaxation.
 
@@ -82,7 +82,7 @@ moleditpy_3d_functional_group_replacer/
 ├── functional_group_replacer_3d/
 │   ├── __init__.py                # Package metadata, lifecycle, and menu registration
 │   ├── chemistry.py               # Core replacement algorithm & constrained 3D relaxation
-│   ├── dialog.py                  # PyQt6 UI, 3D pick event filter & PyVista label management
+│   ├── dialog.py                  # PySide6 UI, 3D pick event filter & PyVista label management
 │   ├── groups.py                  # 50+ SMILES definitions and category index
 │   ├── settings.py                # Validated, atomic companion JSON preferences
 │   └── functional_group_replacer_3d.py # Backward-compatible re-export module
@@ -97,7 +97,7 @@ moleditpy_3d_functional_group_replacer/
 ├── AGENTS.md                      # AI agent & contributor workflow guidelines
 ├── CONTRIBUTING.md                # Contribution guidelines
 ├── CODE_OF_CONDUCT.md             # Code of conduct
-├── LICENSE                        # GNU General Public License v3.0
+├── LICENSE                        # GNU Lesser General Public License v3.0
 └── pyproject.toml                 # Package configuration
 ```
 
@@ -122,4 +122,8 @@ python -m pytest tests/test_api.py -v
 
 ## License
 
-This project is licensed under the [GNU General Public License v3.0](LICENSE).
+This project is licensed under the [GNU Lesser General Public License v3.0](LICENSE).
+
+## Licensing scope
+
+First-party code in this migration is LGPL-3.0-or-later. See [LICENSE](LICENSE), [COPYING](COPYING) and [dependency/provenance terms](LICENSING.md). Third-party components and historical releases retain their own terms.
