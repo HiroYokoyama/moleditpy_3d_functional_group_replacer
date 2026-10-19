@@ -54,7 +54,7 @@ jobs:
       - name: Build release package
         run: |
           TAG="$VERSION"
-          cp README.md LICENSE functional_group_replacer_3d/
+          cp README.md LICENSE COPYING LICENSING.md functional_group_replacer_3d/
           zip -r "functional_group_replacer_3d_${TAG}.zip" functional_group_replacer_3d/ \
             --exclude "*/__pycache__/*" "*/.git/*"
 
