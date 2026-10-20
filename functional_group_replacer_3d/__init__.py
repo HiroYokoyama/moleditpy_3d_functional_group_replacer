@@ -22,9 +22,9 @@ from .groups import (
 from .settings import load_settings, save_settings
 
 PLUGIN_NAME = "3D Functional Group Replacer"
-PLUGIN_VERSION = "2.0.0"
+PLUGIN_VERSION = "2.0.1"
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
-PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.10, <3.15"
+PLUGIN_SUPPORTED_PYTHON_VERSION = ">=3.9, <3.15"
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = "Replace a selected atom with a common functional group while retaining its neighbours."
 PLUGIN_DEPENDENCIES = ["rdkit", "PySide6-Essentials"]
