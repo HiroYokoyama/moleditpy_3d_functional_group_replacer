@@ -1,0 +1,19 @@
+{
+  "source": "functional_group_replacer_3d/__init__.py",
+  "title": "3D Functional Group Replacer",
+  "package": "functional_group_replacer_3d",
+  "archive": "functional_group_replacer_3d_{version}.zip",
+  "assets": [
+    "functional_group_replacer_3d_{version}.zip"
+  ],
+  "include": [
+    "README.md",
+    "LICENSE",
+    "COPYING",
+    "LICENSING.md"
+  ],
+  "exclude": [
+    "*/__pycache__/*",
+    "*/.git/*"
+  ]
+}
